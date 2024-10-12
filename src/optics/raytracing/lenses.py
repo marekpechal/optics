@@ -107,14 +107,7 @@ class SymmetricLens(OpticalSurfaceCollection):
         )
         self.elements += [self.cap1, self.cap2, self.edge]
 
-        self.__setattr__ = self.__setattr_mod__
-
-    def __setattr_mod__(self,*args):
-        super().__setattr__(*args)
-        if hasattr(self,"__onChange__") and self.__onChange__ is not None:
-            self.__onChange__()
-
-    def __onChange__(self):
+    def on_change(self, *args):
         d = self.invR*self.radius**2/(1+np.sqrt(1-(self.radius*self.invR)**2))
         self.cap1.origin = self.origin-self.direction*self.centerThickness/2
         self.cap1.invRadius = self.invR
@@ -164,14 +157,7 @@ class SemiPlanarLens(OpticalSurfaceCollection):
         )
         self.elements += [self.cap1, self.cap2, self.edge]
 
-        self.__setattr__ = self.__setattr_mod__
-
-    def __setattr_mod__(self,*args):
-        super().__setattr__(*args)
-        if hasattr(self,"__onChange__") and self.__onChange__ is not None:
-            self.__onChange__()
-
-    def __onChange__(self):
+    def on_change(self, *args):
         d = self.invR*self.radius**2/(1+np.sqrt(1-(self.radius*self.invR)**2))
         self.cap1.origin = self.origin-self.direction*(self.centerThickness+d)/2
         self.cap1.invRadius = self.invR

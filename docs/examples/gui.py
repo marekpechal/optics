@@ -16,6 +16,7 @@ import os,sys
 sys.path.append(os.path.join(".", "gui_widgets"))
 from ZoomableFigure import ZoomableFigure
 from TrackingView import TrackingView
+from callback_utils import add_class_change_callbacks
 
 class OpticalSurfaceCollection_mod(OpticalSurfaceCollection):
     def addPlane(self,*args,**kwargs):
@@ -37,6 +38,10 @@ class OpticalSurfaceCollection_mod(OpticalSurfaceCollection):
         obj = SemiPlanarLens(*args,**kwargs)
         self.elements.append(obj)
         return obj
+
+add_class_change_callbacks(SymmetricLens)
+add_class_change_callbacks(SemiPlanarLens)
+add_class_change_callbacks(LightSource)
 
 
 class App(object):
@@ -70,7 +75,8 @@ class App(object):
             }
         self.opticalSystemEditor.exposedMethodDct = {
             OpticalSurface:['makeReflective','makeRefractive','makeAbsorptive','makeGrating','makeReflGrating'],
-            OpticalSurfaceCollection_mod:['makeReflective','makeRefractive','makeAbsorptive','makeGrating','makeReflGrating']
+            OpticalSurfaceCollection_mod:['makeReflective','makeRefractive','makeAbsorptive','makeGrating','makeReflGrating'],
+            OpticalSurfaceCollection:['makeReflective','makeRefractive','makeAbsorptive','makeGrating','makeReflGrating']
             }
         self.opticalSystemEditor.__onChange__ = self.onChange
         self.opticalSystemEditor.pack(side=tk.LEFT)

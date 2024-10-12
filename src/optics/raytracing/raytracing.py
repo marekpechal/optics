@@ -107,7 +107,7 @@ class LightSource(object):
         self.elements = elements
         self.result = []
 
-        self.parameters = {'wavelength': 560.0e-9}
+        self.parameters = {'wavelength': 500.0e-9}
 
     def rayTrace(self,opticalSystem):
         self.result = []
@@ -169,14 +169,19 @@ class LightSource(object):
         offset = 0.0
         origin = np.array([0.0,0.0])
         angle = 2*np.pi
-        obj = cls('point source',[
-            Ray(origin,[np.cos(u),np.sin(u)],{})
-            for u in offset+angle*np.linspace(-0.5,0.5,numRays+1)[:-1]])
-        for ray in obj.elements: ray.parameters = obj.parameters
+        obj = cls("point source", [])
         obj.offset = offset
         obj.angle = angle
         obj.numRays = numRays
         obj.origin = origin
+        def make_rays():
+            obj.elements = [
+                Ray(obj.origin, [np.cos(u),np.sin(u)],{})
+                for u in obj.offset+obj.angle*np.linspace(-0.5,0.5,obj.numRays+1)[:-1]]
+            for ray in obj.elements:
+                ray.parameters = obj.parameters
+        obj.make_rays = make_rays
+        obj.make_rays()
 
         return obj
 
@@ -188,16 +193,26 @@ class LightSource(object):
         direction = np.array([1.0,0.0])
 
         R = np.array([[0.,1.],[-1.,0.]])
-        obj = cls('directional source',[
-            Ray(origin+R.dot(direction)*u,direction,{})
-            for u in beamWidth*np.linspace(-0.5,0.5,numRays)])
+        obj = cls('directional source',[])
         for ray in obj.elements: ray.parameters = obj.parameters
         obj.direction = direction
         obj.beamWidth = beamWidth
         obj.numRays = numRays
         obj.origin = origin
+        def make_rays():
+            obj.elements = [
+                Ray(obj.origin+R.dot(obj.direction)*u,obj.direction,{})
+                for u in obj.beamWidth*np.linspace(-0.5,0.5,obj.numRays)]
+            for ray in obj.elements:
+                ray.parameters = obj.parameters
+        obj.make_rays = make_rays
+        obj.make_rays()
 
         return obj
+
+    def on_change(self, *args):
+        if hasattr(self, "make_rays"):
+            self.make_rays()
 
 class SurfaceRayInteraction(object):
     def __init__(self,f,inttype=None):
