@@ -6,7 +6,8 @@ logger_parser = logging.getLogger("parser")
 logging.basicConfig(level="INFO")
 
 class ZemaxSurface:
-    def __init__(self):
+    def __init__(self, name=None):
+        self.name = name
         self.is_stop = False
         self.type = None
         self.curvature = None
@@ -65,21 +66,26 @@ class ZemaxSurface:
                 f"with params <{params}> to obj id {id(self)}")
 
     def __str__(self):
-        return f"surface <{self.label}> of type {self.type} "\
-            f"with curvature {self.curvature}, diameter {self.diameter}, "\
-            f"mechanical-diameter {self.mechanical_diameter} and "\
-            f"distance-to-next {self.distance_to_next} and "\
-            f"coating {self.coating_ref} and glass {self.glass_ref} " + \
-            f"and parameters {self.parameters}" + \
-            (" (STOP)" if self.is_stop else "")
+        return \
+            f"surface <{self.name}> of type {self.type}:\n"\
+            f"  curvature: {self.curvature}\n"\
+            f"  diameter: {self.diameter}\n"\
+            f"  mechanical-diameter: {self.mechanical_diameter}\n"\
+            f"  distance-to-next: {self.distance_to_next}\n"\
+            f"  coating: {self.coating_ref}\n"\
+            f"  glass: {self.glass_ref}\n"\
+            f"  parameters: {self.parameters}\n" + \
+            f"  is_stop: {self.is_stop}"
 
 class ZemaxData:
     def __init__(self, filename, keep_only_lens_surfaces=True):
         self.surfaces = []
+        self.additional_files = {}
+        self.name = None
+        self.catalogues = None
         if filename.lower().endswith(".zmx"):
             with open(filename, "rb") as f:
                 self.raw_content = f.read().decode("utf-16")
-            zmx_additional_files = []
         else:
             zmx_contents = None
             zmx_additional_files = []
@@ -89,7 +95,7 @@ class ZemaxData:
                         raise ValueError("multiple zmx entries")
                     self.raw_content = f.unpacked_contents.decode("utf-8")
                 else:
-                    zmx_additional_files.append(f)
+                    self.additional_files[f.file_name] = f
 
         for line in self.raw_content.split("\n"):
             self.parse_line(line.strip())
@@ -110,6 +116,8 @@ class ZemaxData:
             self.version = params
         elif command == "NAME":
             self.name = params
+        elif command == "GCAT":
+            self.catalogues = params.strip().split(None)
         elif command == "MODE":
             if params != "SEQ":
                 raise NotImplementedError(f"mode type <{params}>")
@@ -117,12 +125,12 @@ class ZemaxData:
             if int(params) != len(self.surfaces):
                 raise ValueError(f"unexpected surface index {params} "\
                     f"while len(surfaces) == {len(self.surfaces)}")
-            self.surfaces.append(ZemaxSurface())
+            self.surfaces.append(ZemaxSurface(name=params))
         elif command in ["DBDT"]:
             logger_parser.info(f"ignoring line <{line}>")
         else:
             logger_parser.info(f"parsing unknown line <{command}> <{params}>")
 
     def __str__(self):
-        return "zmx object consisting of the following surfaces:\n" + \
+        return f"zmx object <{self.name}>:\n" + \
             "\n".join(str(surf) for surf in self.surfaces)
