@@ -78,7 +78,7 @@ class ZemaxData:
         self.surfaces = []
         if filename.lower().endswith(".zmx"):
             with open(filename, "rb") as f:
-                zmx_contents = f.read()
+                self.raw_content = f.read().decode("utf-16")
             zmx_additional_files = []
         else:
             zmx_contents = None
@@ -87,11 +87,10 @@ class ZemaxData:
                 if f.file_name.lower().endswith(".zmx"):
                     if zmx_contents is not None:
                         raise ValueError("multiple zmx entries")
-                    zmx_contents = f.unpacked_contents
+                    self.raw_content = f.unpacked_contents.decode("utf-8")
                 else:
                     zmx_additional_files.append(f)
 
-        self.raw_content = zmx_contents.decode("utf-8")
         for line in self.raw_content.split("\n"):
             self.parse_line(line.strip())
 
