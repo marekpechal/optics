@@ -1,12 +1,14 @@
 from zmxtools import zar
 import numpy as np
 import logging
+from optics.glass import Glass
 
 logger_parser = logging.getLogger("parser")
 
 class ZemaxSurface:
-    def __init__(self, name=None):
+    def __init__(self, name=None, parent=None):
         self.name = name
+        self.parent = parent
         self.is_stop = False
         self.type = "STANDARD"
         self.curvature = None
@@ -16,7 +18,7 @@ class ZemaxSurface:
         self.diameter = None
         self.mechanical_diameter = None
         self.coating_ref = None
-        self.glass_ref = None
+        self.glass = None
         self.parameters = {}
 
     def apply_command(self, command, params):
@@ -55,9 +57,22 @@ class ZemaxSurface:
         elif command == "GLAS":
             parts = params.strip().split(None)
             if parts[0] != "___BLANK":
-                self.glass_ref = parts[0]
+                glass_ref = parts[0]
+                try:
+                    self.glass = Glass.from_zemax_data(
+                        glass_ref, self.parent)
+                except:
+                    logger_parser.info(
+                        f"{glass_ref} not found in attached files")
+                    if glass_ref.startswith("N-"):
+                        logger_parser.info(
+                            f"stripping initial 'N-' from {glass_ref}")
+                        glass_ref = glass_ref[2:]
+                    self.glass = Glass.from_library(glass_ref)
             else:
-                self.glass_ref = parts
+                nd = float(parts[3])
+                Vd = float(parts[4])
+                self.glass = Glass.from_two_term_model("unnamed", nd, Vd)
         elif command == "PARM":
             parts = params.strip().split(None)
             self.parameters[int(parts[0])] = float(parts[1])
@@ -76,7 +91,7 @@ class ZemaxSurface:
             f"  mechanical_diameter: {self.mechanical_diameter}\n"\
             f"  distance_to_next: {self.distance_to_next}\n"\
             f"  coating: {self.coating_ref}\n"\
-            f"  glass: {self.glass_ref}\n"\
+            f"  glass: {self.glass.name if self.glass else None}\n"\
             f"  parameters: {self.parameters}\n" + \
             f"  is_stop: {self.is_stop}"
 
@@ -135,7 +150,7 @@ class ZemaxData:
             if int(params) != len(self.surfaces):
                 raise ValueError(f"unexpected surface index {params} "\
                     f"while len(surfaces) == {len(self.surfaces)}")
-            self.surfaces.append(ZemaxSurface(name=params))
+            self.surfaces.append(ZemaxSurface(name=params, parent=self))
         elif command in ["DBDT"]:
             logger_parser.info(f"ignoring line <{line}>")
         else:
