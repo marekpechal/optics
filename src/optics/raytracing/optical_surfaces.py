@@ -267,6 +267,7 @@ class ConicalSlice(OpticalSurface):
     def normal(self,pt):
         pt = np.array(pt)
         ey=pt-self.origin-np.dot(self.direction,pt-self.origin)*self.direction
+        ey = ey/np.linalg.norm(ey)
         n = self.direction*(self.r1-self.r2)+ey*self.h
         n = n/np.linalg.norm(n)
         return n
