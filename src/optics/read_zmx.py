@@ -3,14 +3,14 @@ import numpy as np
 import logging
 
 logger_parser = logging.getLogger("parser")
-logging.basicConfig(level="INFO")
 
 class ZemaxSurface:
     def __init__(self, name=None):
         self.name = name
         self.is_stop = False
-        self.type = None
+        self.type = "STANDARD"
         self.curvature = None
+        self.conic_constant = None
         self.label = None
         self.distance_to_next = None
         self.diameter = None
@@ -31,6 +31,8 @@ class ZemaxSurface:
                 raise NotImplementedError("handling non-empty FIMP")
         elif command == "CURV":
             self.curvature = float(params.strip().split(None, 1)[0])
+        elif command == "CONI":
+            self.conic_constant = float(params.strip().split(None, 1)[0])
         elif command == "MIRR":
             if params != "2 0":
                 raise NotImplementedError(f"MIRR with params <{params}>")
@@ -69,9 +71,10 @@ class ZemaxSurface:
         return \
             f"surface <{self.name}> of type {self.type}:\n"\
             f"  curvature: {self.curvature}\n"\
+            f"  conic_constant: {self.conic_constant}\n"\
             f"  diameter: {self.diameter}\n"\
-            f"  mechanical-diameter: {self.mechanical_diameter}\n"\
-            f"  distance-to-next: {self.distance_to_next}\n"\
+            f"  mechanical_diameter: {self.mechanical_diameter}\n"\
+            f"  distance_to_next: {self.distance_to_next}\n"\
             f"  coating: {self.coating_ref}\n"\
             f"  glass: {self.glass_ref}\n"\
             f"  parameters: {self.parameters}\n" + \
@@ -83,6 +86,7 @@ class ZemaxData:
         self.additional_files = {}
         self.name = None
         self.catalogues = None
+        self.length_unit = None
         if filename.lower().endswith(".zmx"):
             with open(filename, "rb") as f:
                 self.raw_content = f.read().decode("utf-16")
@@ -116,6 +120,12 @@ class ZemaxData:
             self.version = params
         elif command == "NAME":
             self.name = params
+        elif command == "UNIT":
+            parts = params.strip().split()
+            if parts[0] == "MM":
+                self.length_unit = 1e-3
+            else:
+                raise NotImplementedError(f"length unit {parts[0]}")
         elif command == "GCAT":
             self.catalogues = params.strip().split(None)
         elif command == "MODE":
