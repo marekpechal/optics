@@ -20,7 +20,7 @@ def makeAdderMethods(cls):
     can be used to add elementary point sources to a composite LightSource.
     """
     def makeAdderMethod(name):
-        nname = 'add' + name[0].upper() + name[1:]
+        nname = "add" + name[0].upper() + name[1:]
         def f(self, *args, **kwargs):
             self.elements.append(getattr(cls, name)(*args, **kwargs))
         f.__name__ = nname
@@ -35,9 +35,9 @@ def makeAdderMethods(cls):
 
 def onPrimitives(combiningFunc=None):
     def decorator(f):
-        def wrapper(*args,**kwargs):
+        def wrapper(*args, **kwargs):
             self = args[0]
-            lst = [f(*((obj,)+args[1:]),**kwargs)
+            lst = [f(*((obj,)+args[1:]), **kwargs)
                 for obj in getPrimitives(self)]
             if combiningFunc is not None:
                 return combiningFunc(lst)
@@ -46,34 +46,34 @@ def onPrimitives(combiningFunc=None):
 
 def attachMethodsFromFile(fname):
     def makeAdderMethod(line):
-        parts = line.split('|')
+        parts = line.split("|")
         if len(parts) == 2:
-            name,expr = parts
+            name, expr = parts
         else:
-            name,expr,post = parts
+            name, expr, post = parts
             post = post.strip()
         name = name.strip()
         expr = expr.strip()
         def method(self):
             obj = eval(expr)
-            exec('obj.'+post)
+            exec("obj."+post)
             self.elements.append(obj)
         method.__name__ = name.strip()
         return method
 
     def decorator(cls):
-        if not hasattr(cls,'__exposedMethods__'):
+        if not hasattr(cls, "__exposedMethods__"):
             cls.__exposedMethods__ = []
-        with open(fname,'r') as f:
+        with open(fname, "r") as f:
             for line in f:
                 method = makeAdderMethod(line)
                 cls.__exposedMethods__.append(method.__name__)
-                setattr(cls,method.__name__,method)
+                setattr(cls, method.__name__, method)
         return cls
     return decorator
 
 def getPrimitives(collection):
-    if isinstance(collection,OpticalSurfaceCollection):
+    if isinstance(collection, OpticalSurfaceCollection):
         for element in collection.elements:
             yield from getPrimitives(element)
     else:
@@ -83,16 +83,16 @@ def _combine_bounding_boxes(lst):
     if lst:
         p1 = [min([pts[0][i] for pts in lst]) for i in range(len(lst[0][0]))]
         p2 = [max([pts[1][i] for pts in lst]) for i in range(len(lst[0][1]))]
-        return np.array(p1),np.array(p2)
+        return np.array(p1), np.array(p2)
 
 class Ray(object):
-    def __init__(self,origin,direction,parameters,**kwargs):
-        if 'name' in kwargs:
-            self.__name__ = kwargs['name']
-            del kwargs['name']
+    def __init__(self, origin, direction, parameters, **kwargs):
+        if "name" in kwargs:
+            self.__name__ = kwargs["name"]
+            del kwargs["name"]
         else:
-            self.__name__ = 'ray'
-        if not isinstance(origin,np.ndarray):
+            self.__name__ = "ray"
+        if not isinstance(origin, np.ndarray):
             self.origin = np.array(origin)
         else:
             self.origin = origin
@@ -102,14 +102,14 @@ class Ray(object):
 
 @makeAdderMethods
 class LightSource(object):
-    def __init__(self,name,elements):
+    def __init__(self, name, elements):
         self.__name__ = name
         self.elements = elements
         self.result = []
 
-        self.parameters = {'wavelength': 500.0e-9}
+        self.parameters = {"wavelength": 500.0e-9}
 
-    def rayTrace(self,opticalSystem):
+    def rayTrace(self, opticalSystem):
         self.result = []
         for ray in self.getRays():
             self.result.append(opticalSystem.rayTrace(ray))
@@ -123,51 +123,51 @@ class LightSource(object):
 
     def geometry(self):
         res = []
-        cmap = matplotlib.cm.get_cmap('Spectral')
+        cmap = matplotlib.cm.get_cmap("Spectral")
         for paths in self.result:
             for path in paths:
                 pts = []
-                for ray in path['rays']:
-                    if isinstance(ray,Ray):
+                for ray in path["rays"]:
+                    if isinstance(ray, Ray):
                         pts.append(ray.origin)
                     else:
                         pts.append(ray)
-                if path['status'] == 'escape':
-                    pts.append(pts[-1]+100.0*path['rays'][-1].direction)
+                if path["status"] == "escape":
+                    pts.append(pts[-1]+100.0*path["rays"][-1].direction)
 
-                esccol = 'green'
-                if hasattr(ray,'parameters') and 'wavelength' in ray.parameters:
-                    lam = ray.parameters['wavelength']
+                esccol = "green"
+                if hasattr(ray, "parameters") and "wavelength" in ray.parameters:
+                    lam = ray.parameters["wavelength"]
                     x = (lam-380.0e-9)/(740.0e-9-380.0e-9)
                     esccol = cmap(1.0-x)
                     esccol = tuple([int(255*x) for x in esccol])
 
                 color = {
-                    'escape': esccol,
-                    'maxsteps': 'red',
-                    'maxrecursion': 'orange',
-                    'absorption': esccol #'blue'
-                }[path['status']]
+                    "escape": esccol,
+                    "maxsteps": "red",
+                    "maxrecursion": "orange",
+                    "absorption": esccol #"blue"
+                }[path["status"]]
                 res.append({
-                    'type':'line','points':pts,'width':2,'color':color
+                    "type": "line", "points": pts, "width": 2, "color": color
                     })
-                if path['status'] == 'escape':
+                if path["status"] == "escape":
                     pts = pts[:-1]
                 for pt in pts:
                     res.append({
-                        'type':'dot','center':pt,'radius':2,'color':color
+                        "type": "dot", "center": pt, "radius": 2, "color": color
                         })
 
         return res
 
     def addRay(self):
-        self.elements.append(Ray([0.0,0.0],[1.0,0.0],{}))
+        self.elements.append(Ray([0.0, 0.0], [1.0, 0.0], {}))
 
     @classmethod
     def pointSource(cls):
         numRays = 16
         offset = 0.0
-        origin = np.array([0.0,0.0])
+        origin = np.array([0.0, 0.0])
         angle = 2*np.pi
         obj = cls("point source", [])
         obj.offset = offset
@@ -176,8 +176,9 @@ class LightSource(object):
         obj.origin = origin
         def make_rays():
             obj.elements = [
-                Ray(obj.origin, [np.cos(u),np.sin(u)],{})
-                for u in obj.offset+obj.angle*np.linspace(-0.5,0.5,obj.numRays+1)[:-1]]
+                Ray(obj.origin, [np.cos(u), np.sin(u)], {})
+                for u in obj.offset+obj.angle*np.linspace(
+                    -0.5, 0.5, obj.numRays+1)[:-1]]
             for ray in obj.elements:
                 ray.parameters = obj.parameters
         obj.make_rays = make_rays
@@ -188,21 +189,22 @@ class LightSource(object):
     @classmethod
     def dirSource(cls):
         numRays = 16
-        origin = np.array([-50.0,0.0])
+        origin = np.array([-50.0, 0.0])
         beamWidth = 20.0
-        direction = np.array([1.0,0.0])
+        direction = np.array([1.0, 0.0])
 
-        R = np.array([[0.,1.],[-1.,0.]])
-        obj = cls('directional source',[])
-        for ray in obj.elements: ray.parameters = obj.parameters
+        R = np.array([[0., 1.], [-1., 0.]])
+        obj = cls("directional source", [])
+        for ray in obj.elements:
+            ray.parameters = obj.parameters
         obj.direction = direction
         obj.beamWidth = beamWidth
         obj.numRays = numRays
         obj.origin = origin
         def make_rays():
             obj.elements = [
-                Ray(obj.origin+R.dot(obj.direction)*u,obj.direction,{})
-                for u in obj.beamWidth*np.linspace(-0.5,0.5,obj.numRays)]
+                Ray(obj.origin+R.dot(obj.direction)*u, obj.direction, {})
+                for u in obj.beamWidth*np.linspace(-0.5, 0.5, obj.numRays)]
             for ray in obj.elements:
                 ray.parameters = obj.parameters
         obj.make_rays = make_rays
@@ -220,58 +222,61 @@ class SurfaceRayInteraction(object):
         self.inttype = inttype
         self.kwargs = {}
 
-    def __call__(self,rays,point,normal,tol):
-        if self.f is None: return []
-        if isinstance(rays,Ray): rays = [rays]
+    def __call__(self, rays, point, normal, tol):
+        if self.f is None:
+                return []
+        if isinstance(rays, Ray):
+                rays = [rays]
         lst = []
         for ray in rays:
-            res = self.f(ray,point,normal,tol,**self.kwargs)
-            if isinstance(res,Ray): res = [res]
+            res = self.f(ray, point, normal, tol, **self.kwargs)
+            if isinstance(res, Ray):
+                res = [res]
             lst += res
         return lst
 
     @classmethod
     def absorber(cls):
-        return cls(None,inttype='absorber')
+        return cls(None, inttype="absorber")
 
     @staticmethod
-    def f_abs(ray,point,normal,tol):
+    def f_abs(ray, point, normal, tol):
         ndir = ray.direction.view(np.ndarray)
 
         shift = 10*tol/abs(np.dot(normal,ndir))
         pt = point + shift*ndir
-        return Ray(pt,ndir,ray.parameters)
+        return Ray(pt, ndir, ray.parameters)
 
     @classmethod
     def transparent(cls):
-        return cls(cls.f_abs,inttype='transparent')
+        return cls(cls.f_abs, inttype="transparent")
 
     @staticmethod
-    def f_mirror(ray,point,normal,tol):
+    def f_mirror(ray, point, normal, tol):
         ndir = ray.direction.view(np.ndarray)
-        ndir = ndir-2*normal*np.dot(normal,ndir)
+        ndir = ndir-2*normal*np.dot(normal, ndir)
 
-        shift = 10*tol/abs(np.dot(normal,ndir))
+        shift = 10*tol/abs(np.dot(normal, ndir))
         pt = point + shift*ndir
-        return Ray(pt,ndir,ray.parameters)
+        return Ray(pt, ndir, ray.parameters)
 
     @classmethod
     def mirror(cls):
-        return cls(cls.f_mirror,inttype='mirror')
+        return cls(cls.f_mirror, inttype="mirror")
 
     @staticmethod
-    def f_refr(ray,point,normal,tol,n=1.5):
+    def f_refr(ray, point, normal, tol, n=1.5):
         if callable(n):
-            if hasattr(ray,'parameters') and 'wavelength' in ray.parameters:
-                lam = ray.parameters['wavelength']
+            if hasattr(ray,"parameters") and "wavelength" in ray.parameters:
+                lam = ray.parameters["wavelength"]
             else:
                 lam = 580.0e-9
             n = n(lam)
 
         ndir = ray.direction.view(np.ndarray)
-        tcos = -np.dot(normal,ndir)
+        tcos = -np.dot(normal, ndir)
         en = normal*(-1.0 if tcos>=0.0 else 1.0)
-        et = ndir-en*np.dot(en,ndir)
+        et = ndir-en*np.dot(en, ndir)
         etnorm = np.linalg.norm(et)
         if etnorm > 0.0:
             et = et/etnorm
@@ -284,33 +289,33 @@ class SurfaceRayInteraction(object):
             tsinRefr = tsin*n
 
         if tsinRefr>=1.0:
-            ndir = ndir-2*normal*np.dot(normal,ndir)
+            ndir = ndir-2*normal*np.dot(normal, ndir)
         else:
             tcosRefr = np.sqrt(1.0-tsinRefr**2)
             ndir = tcosRefr*en + tsinRefr*et
 
-        shift = 10*tol/abs(np.dot(normal,ndir))
+        shift = 10*tol/abs(np.dot(normal, ndir))
         pt = point + shift*ndir
-        return Ray(pt,ndir,ray.parameters)
+        return Ray(pt, ndir, ray.parameters)
 
     @staticmethod
-    def f_grating(ray,point,normal,tol,dk=None):
-        if dk is None: dk = np.array([0.,2*np.pi*1e6])
+    def f_grating(ray, point, normal, tol, dk=None):
+        if dk is None: dk = np.array([0., 2*np.pi*1e6])
         ndir = ray.direction.view(np.ndarray)
         dkNorm = np.linalg.norm(dk)
         dk = dk - normal*np.dot(normal,dk)
         dk = dk*dkNorm/np.linalg.norm(dk)
 
-        if hasattr(ray,'parameters') and 'wavelength' in ray.parameters:
-            lam = ray.parameters['wavelength']
+        if hasattr(ray,"parameters") and "wavelength" in ray.parameters:
+            lam = ray.parameters["wavelength"]
         else:
             lam = 560.0e-9
         k0 = 2*np.pi/lam
-        kn = np.dot(k0*ndir,normal)
+        kn = np.dot(k0*ndir, normal)
         kt = k0*ndir-normal*kn
 
         lst = []
-        for j in [0,-1,1]:
+        for j in [0, -1, 1]:
             kt2 = kt+j*dk
             kt2sqr = np.linalg.norm(kt2)**2
             if kt2sqr>k0**2: continue
@@ -319,31 +324,32 @@ class SurfaceRayInteraction(object):
 
             ndir = k2/k0
 
-            shift = 10*tol/abs(np.dot(normal,ndir))
+            shift = 10*tol/abs(np.dot(normal, ndir))
             pt = point + shift*ndir
-            lst.append(Ray(pt,ndir,ray.parameters))
+            lst.append(Ray(pt, ndir, ray.parameters))
 
         return lst
 
 
     @staticmethod
-    def f_refl_grating(ray,point,normal,tol,dk=None):
-        if dk is None: dk = np.array([0.,2*np.pi*1e6])
+    def f_refl_grating(ray, point, normal, tol, dk=None):
+        if dk is None:
+            dk = np.array([0., 2*np.pi*1e6])
         ndir = ray.direction.view(np.ndarray)
         dkNorm = np.linalg.norm(dk)
         dk = dk - normal*np.dot(normal,dk)
         dk = dk*dkNorm/np.linalg.norm(dk)
 
-        if hasattr(ray,'parameters') and 'wavelength' in ray.parameters:
-            lam = ray.parameters['wavelength']
+        if hasattr(ray, "parameters") and "wavelength" in ray.parameters:
+            lam = ray.parameters["wavelength"]
         else:
             lam = 560.0e-9
         k0 = 2*np.pi/lam
-        kn = np.dot(k0*ndir,normal)
+        kn = np.dot(k0*ndir, normal)
         kt = k0*ndir-normal*kn
 
         lst = []
-        for j in [0,-1,1]:
+        for j in [0, -1, 1]:
             kt2 = kt+j*dk
             kt2sqr = np.linalg.norm(kt2)**2
             if kt2sqr>k0**2: continue
@@ -352,29 +358,29 @@ class SurfaceRayInteraction(object):
 
             ndir = k2/k0
 
-            shift = 10*tol/abs(np.dot(normal,ndir))
+            shift = 10*tol/abs(np.dot(normal, ndir))
             pt = point + shift*ndir
-            lst.append(Ray(pt,ndir,ray.parameters))
+            lst.append(Ray(pt, ndir, ray.parameters))
 
         return lst
 
 
     @classmethod
-    def refraction(cls,idxRefr):
-        obj = cls(cls.f_refr,inttype='refraction')
-        obj.kwargs = {'n':idxRefr}
+    def refraction(cls, idxRefr):
+        obj = cls(cls.f_refr, inttype="refraction")
+        obj.kwargs = {"n": idxRefr}
         return obj
 
     @classmethod
-    def grating(cls,dk):
-        obj = cls(cls.f_grating,inttype='grating')
-        obj.kwargs = {'dk':dk}
+    def grating(cls, dk):
+        obj = cls(cls.f_grating, inttype="grating")
+        obj.kwargs = {"dk": dk}
         return obj
 
     @classmethod
-    def refl_grating(cls,dk):
-        obj = cls(cls.f_refl_grating,inttype='refl_grating')
-        obj.kwargs = {'dk':dk}
+    def refl_grating(cls, dk):
+        obj = cls(cls.f_refl_grating, inttype="refl_grating")
+        obj.kwargs = {"dk": dk}
         return obj
 
 class OpticalSurface(object):
@@ -387,7 +393,7 @@ class OpticalSurface(object):
 
     def __add__(self,other):
         return OpticalSurfaceCollection(
-            'union('+self.__name__+','+other.__name__+')',
+            "union("+self.__name__+","+other.__name__+")",
             self.asCollection().elements+other.asCollection().elements)
 
     def makeReflective(self):
@@ -407,7 +413,7 @@ class OpticalSurface(object):
 
     def geometry(self):
         pts = self.pointList()
-        return [{'type':'line','points':pts,'width':2,'color':'black'}]
+        return [{"type":"line","points":pts,"width":2,"color":"black"}]
 
     def distance(self,pt):
         raise NotImplementedError("""
@@ -428,7 +434,7 @@ class OpticalSurface(object):
         """)
 
 
-#@attachMethodsFromFile('lenses.txt')
+#@attachMethodsFromFile("lenses.txt")
 class OpticalSurfaceCollection(object):
     def __init__(self,name,elements):
         self.__name__ = name
@@ -440,11 +446,11 @@ class OpticalSurfaceCollection(object):
 
     def __add__(self,other):
         return OpticalSurfaceCollection(
-            'union('+self.__name__+','+other.__name__+')',
+            "union("+self.__name__+","+other.__name__+")",
             self.elements+other.asCollection().elements)
 
     def __setattr__(self,name,val):
-        if hasattr(self,'attrLinks') and name in self.attrLinks:
+        if hasattr(self,"attrLinks") and name in self.attrLinks:
             for dstobj,dstname in self.attrLinks[name]:
                 setattr(dstobj,dstname,val)
         object.__setattr__(self,name,val)
@@ -458,19 +464,19 @@ class OpticalSurfaceCollection(object):
         if draw:
             for p in getPrimitives(self):
                 pts = p.pointList()
-                kw = {} if color is None else {'color':color}
+                kw = {} if color is None else {"color":color}
                 if isinstance(pts, list):
                     for ptss in pts:
-                        lst.append(ax.plot(ptss[:,0],ptss[:,1],'-',**kw)[0])
+                        lst.append(ax.plot(ptss[:,0],ptss[:,1],"-",**kw)[0])
                 else:
-                    lst.append(ax.plot(pts[:,0],pts[:,1],'-',**kw)[0])
+                    lst.append(ax.plot(pts[:,0],pts[:,1],"-",**kw)[0])
 
         pt1,pt2 = self.bbox()
 
         if showBbox:
             X = [pt1[0],pt2[0],pt2[0],pt1[0],pt1[0]]
             Y = [pt1[1],pt1[1],pt2[1],pt2[1],pt1[1]]
-            lst.append(ax.plot(X,Y,'k--')[0])
+            lst.append(ax.plot(X,Y,"k--")[0])
 
         if autoSetRange:
             w = pt2[0]-pt1[0]
@@ -482,55 +488,55 @@ class OpticalSurfaceCollection(object):
 
         return lst
 
-    def rayTrace(self,ray,maxrecursion=12,tol=1e-6,ax=None,coldct=None):
+    def rayTrace(self, ray, maxrecursion=12, tol=1e-6, ax=None, coldct=None):
         if maxrecursion == 0:
-            return [{'rays':[ray],'status':'maxrecursion'}]
+            return [{"rays": [ray], "status": "maxrecursion"}]
         pt,p,normal,distance,_,status = self.findRayIntersection(
             ray.origin,
             ray.direction.view(np.ndarray),
             tol=tol)
-        if status == 'escape':
-            res = [{'rays':[ray],'status':'escape'}]
-        elif status == 'maxsteps':
-            res = [{'rays':[ray],'status':'maxsteps'}]
+        if status == "escape":
+            res = [{"rays": [ray], "status": "escape"}]
+        elif status == "maxsteps":
+            res = [{"rays": [ray], "status": "maxsteps"}]
         else:
             res = []
-            raysAfter = p.surfaceRayInteraction(ray,pt,normal,tol)
+            raysAfter = p.surfaceRayInteraction(ray, pt, normal, tol)
             if raysAfter:
                 for ray2 in raysAfter:
                     subTrace = self.rayTrace(ray2,
-                        maxrecursion=maxrecursion-1,tol=tol,ax=None)
+                        maxrecursion=maxrecursion-1, tol=tol, ax=None)
                     for subres in subTrace:
                         res.append({
-                            'rays':[ray]+subres['rays'],
-                            'status':subres['status']
+                            "rays": [ray]+subres["rays"],
+                            "status": subres["status"]
                             })
             else:
                 res.append({
-                    'rays':[ray,pt],
-                    'status':'absorption'
+                    "rays": [ray, pt],
+                    "status": "absorption"
                     })
 
 
         if ax is not None:
             if coldct is None:
                 coldct = {
-                    'escape': 'green',
-                    'maxsteps': 'red',
-                    'maxrecursion': 'orange',
-                    'absorption': 'blue'
+                    "escape": "green",
+                    "maxsteps": "red",
+                    "maxrecursion": "orange",
+                    "absorption": "blue"
                 }
             axc = []
             for bunch in res:
-                pts = [(ray.origin if isinstance(ray,Ray) else ray)
-                    for ray in bunch['rays']]
-                if bunch['status'] == 'escape':
-                    findir = bunch['rays'][-1].direction.view(np.ndarray)
+                pts = [(ray.origin if isinstance(ray, Ray) else ray)
+                    for ray in bunch["rays"]]
+                if bunch["status"] == "escape":
+                    findir = bunch["rays"][-1].direction.view(np.ndarray)
                     pts.append(pts[-1]+1e6*findir)
                 pts = np.array(pts)
                 axc.append(
-                    ax.plot(pts[:,0],pts[:,1],
-                        '.-',color=coldct[bunch['status']])[0]
+                    ax.plot(pts[:,0], pts[:,1],
+                        ".-", color=coldct[bunch["status"]])[0]
                     )
 
             return res,axc
@@ -546,7 +552,7 @@ class OpticalSurfaceCollection(object):
         rdir = rdir / np.linalg.norm(rdir)
 
         if bbox is None:
-            return pt, None, None, None, None, 'escape'
+            return pt, None, None, None, None, "escape"
 
         a = np.ones(len(pt))
         b = bbox[1].copy()
@@ -557,14 +563,14 @@ class OpticalSurfaceCollection(object):
         for c in range(maxsteps):
             dist = self.distance(pt)
             if np.any(a*pt > b):
-                return pt, None, None, dist, c, 'escape'
+                return pt, None, None, dist, c, "escape"
             if dist < tol:
                 p,normal = self.closestPrimitiveAndNormal(pt)
-                return pt, p, normal, dist, c, 'tol'
+                return pt, p, normal, dist, c, "tol"
             pt += dist*rdir
 
         p, normal = self.closestPrimitiveAndNormal(pt)
-        return pt, p, normal, dist, maxsteps, 'maxsteps'
+        return pt, p, normal, dist, maxsteps, "maxsteps"
 
     def closestPrimitiveAndNormal(self,pt):
         lst = [(p.distance(pt), p, p.normal(pt)) for p in getPrimitives(self)]
