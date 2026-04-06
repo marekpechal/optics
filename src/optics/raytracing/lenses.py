@@ -4,74 +4,36 @@ import numpy as np
 from optics.raytracing import OpticalSurfaceCollection
 from optics.raytracing.optical_surfaces import SphericalCap, ConicalSlice
 import optics.glass_library as gllib
+from optics.glass import Glass
 
-def lens_from_zmx(fname, origin = None, direction = None):
-    surfaceName = None
-    lensName = None
-    surfaces = {}
-    with open(fname, "r") as f:
-        for line in f:
-            line = line.strip("\n")
-            line = line.replace("\x00", "")
-            if len(line) == 0: continue
-
-            if line.startswith("NAME "):
-                lensName = line[5:]
-            if line.startswith("SURF "):
-                surfaceName = line[5:]
-                surfaces[surfaceName] = {}
-
-            if surfaceName is not None:
-                if line.startswith("  CURV "):
-                    surfaces[surfaceName]["curvature"] = float(line[7:])
-                if line.startswith("  DIAM "):
-                    surfaces[surfaceName]["clear_aperture_diameter"] = \
-                        2*float(line[7:].split(" ")[0])
-                if line.startswith("  MEMA "):
-                    surfaces[surfaceName]["diameter"] = \
-                        2*float(line[7:].split(" ")[0])
-                if line.startswith("  GLAS "):
-                    surfaces[surfaceName]["glass"] = line[7:]
-                if line.startswith("  DISZ "):
-                    surfaces[surfaceName]["disz"] = float(line[7:])
-
-    lens = OpticalSurfaceCollection("zmx lens", [])
+def lens_from_zemax_data(zemax_data, origin=None, direction=None):
     if origin is None:
         origin = np.zeros(2)
     if direction is None:
         direction = np.array([1.0, 0.0])
 
+    lens = OpticalSurfaceCollection(zemax_data.name, [])
     z = 0.0
     f2 = lambda _: 1.0
-    for key in surfaces:
-
-        if "clear_aperture_diameter" in surfaces[key]:
-            f1 = f2
-            if "glass" in surfaces[key]:
-                s = surfaces[key]["glass"]
-                if s.startswith("N-"):
-                    s = s[2:]
-                f2 = getattr(gllib, "n_"+s)
-            else:
-                f2 = lambda _: 1.0
-
-            surf = SphericalCap(
-                origin = origin + direction * z,
-                invRadius = surfaces[key]["curvature"],
-                r = 0.5 * surfaces[key]["diameter"],
-                direction = -direction)
-            lens.elements.append(surf)
-            surf.makeRefractive(
-                n = lambda lam,
-                f1 = f1,
-                f2 = f2:
-                f2(lam) / f1(lam))
-
-            z += surfaces[key]["disz"]
-
-
+    for surf_info in zemax_data.surfaces:
+        f1 = f2
+        glass_ref = surf_info.glass_ref
+        if glass_ref is not None and glass_ref.startswith("N-"):
+            glass_ref = glass_ref[2:]
+        if glass_ref is not None:
+            f2 = Glass.from_library(glass_ref).n
+        else:
+            f2 = lambda _: 1.0
+        surf = SphericalCap(
+            origin = origin + direction * z,
+            invRadius = surf_info.curvature,
+            r = 0.5 * surf_info.diameter,
+            direction = -direction)
+        lens.elements.append(surf)
+        surf.makeRefractive(
+            n = lambda lam, f1 = f1, f2 = f2: f2(lam) / f1(lam))
+        z += surf_info.distance_to_next
     return lens
-
 
 class SymmetricLens(OpticalSurfaceCollection):
     def __init__(

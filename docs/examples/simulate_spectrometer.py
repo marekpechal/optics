@@ -4,7 +4,8 @@ import scipy.optimize
 
 import optics.raytracing as rt
 import optics.cie as cie
-from optics.raytracing.lenses import lens_from_zmx
+from optics.raytracing.lenses import lens_from_zmx, lens_from_zemax_data
+from optics.read_zmx import ZemaxData
 from optics.raytracing.optical_surfaces import Rectangle, Pinhole
 import optics.glass_library as gllib
 
@@ -20,12 +21,10 @@ def getRayBundleSpread(rays, position, normalVec):
     drSqrMean = np.mean([np.linalg.norm(dr) ** 2 for dr in drArr])
     return np.sqrt(drSqrMean - np.linalg.norm(drMean) ** 2)
 
-
-lens1 = lens_from_zmx('zmax_49770.zmx')
-lens2 = lens_from_zmx('zmax_63697.zmx',
+lens1 = lens_from_zemax_data(ZemaxData('zmax_49770.zmx'))
+lens2 = lens_from_zemax_data(ZemaxData('zmax_63697.zmx'),
     origin = np.array([148.0, 0.0]),
     direction = np.array([-1.0, 0.0]))
-
 
 # position and orientation at "prism output"
 ptc = np.array([182.92883976, 4.66732297])
