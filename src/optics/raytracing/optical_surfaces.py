@@ -3,6 +3,10 @@
 import numpy as np
 import itertools
 from optics.raytracing import OpticalSurface
+from optics.utils import (
+    closest_point_on_polynomial_graph,
+    normal_to_polynomial_graph,
+    )
 
 class Rectangle(OpticalSurface):
     def __init__(self, origin, extents, name = 'rectangle'):
@@ -224,6 +228,67 @@ class SphericalCap(OpticalSurface):
             1+np.sqrt(1-(self.r*self.invRadius)**2))
         pt = self.origin-self.direction*y0
         return pt-self.r,pt+self.r
+
+class PolynomialCap(OpticalSurface):
+    def __init__(
+            self,
+            coefs,
+            name='polynomial cap',
+            origin=None,
+            direction=None,
+            r=0.5):
+        if origin is None:
+            origin=np.zeros(2)
+        if direction is None:
+            direction=np.array([1.0, 0.0])
+        OpticalSurface.__init__(self, name)
+        self.coefs = np.array(coefs)
+        self.origin = origin
+        self.r = r
+        self.direction = direction
+
+    def pointList(self):
+        x = np.linspace(-self.r,self.r,101)
+        y = np.polyval(self.coefs[::-1], x)
+        pts = np.array([x,y])
+        ey = -self.direction
+        if len(self.origin) == 2:
+            ex = np.array([[0,1],[-1,0]]).dot(self.direction)
+            pts = np.array([ex,ey]).transpose().dot(pts)
+            return self.origin+pts.transpose()
+        else:
+            ex1 = np.cross(self.direction, [0., 0., 1.])
+            ex1 = ex1 / np.linalg.norm(ex1)
+            ex2 = np.cross(self.direction, ex1)
+            pts1 = np.array([ex1,ey]).transpose().dot(pts)
+            pts2 = np.array([ex2,ey]).transpose().dot(pts)
+            return [
+                self.origin + pts1.transpose(),
+                self.origin + pts2.transpose()
+                ]
+
+    def distance(self, pt):
+        pt = np.array(pt)
+        y = -np.dot(self.direction, pt-self.origin)
+        x = np.linalg.norm(pt-self.origin+y*self.direction)
+        return closest_point_on_polynomial_graph(
+            [x, y],
+            self.coefs,
+            [-self.r, self.r]
+            )[2]
+
+    def normal(self, pt):
+        pt = np.array(pt)
+        ey = -self.direction
+        y = np.dot(ey, pt-self.origin)
+        x = np.linalg.norm(pt-self.origin-y*ey)
+        ex = (pt-self.origin-y*ey)/x
+        n = normal_to_polynomial_graph(self.coefs, x)
+        return n[0]*ex + n[1]*ey
+
+    def bbox(self):
+        pt = self.origin
+        return pt-self.r, pt+self.r
 
 class ConicalSlice(OpticalSurface):
     def __init__(self,name='conical slice',origin=None,r1=1.0,r2=1.0,h=1.0,direction=None):

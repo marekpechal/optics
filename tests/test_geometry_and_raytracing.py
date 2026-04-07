@@ -1,13 +1,17 @@
-from optics.raytracing.optical_surfaces import SphericalCap, ConicalSlice
+from optics.raytracing.optical_surfaces import (
+    SphericalCap,
+    ConicalSlice,
+    PolynomialCap,
+    )
 from optics.raytracing import Ray, OpticalSurfaceCollection
 import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    R1 = 0.8
     r1 = 0.3
-    h1 = R1 - np.sqrt(R1**2-r1**2)
+    h1 = 0.2
+    coefs1 = np.array([0.0, 0.0, h1/r1**2])
 
     R2 = 1.0
     r2 = 0.5
@@ -16,14 +20,14 @@ if __name__ == "__main__":
     th = 0.0
     axis_dir = np.array([np.cos(th), 0.0, np.sin(th)])
 
-    d = 0.2
+    d = (2*h1/r1)*(r2-r1)
 
     x1 = -d/2-h1
     x2 = d/2+h2
 
-    obj1 = SphericalCap(
+    obj1 = PolynomialCap(
+        coefs1,
         origin=np.array([x1*np.cos(th), 0.0, x1*np.sin(th)]),
-        invRadius=1/R1,
         direction=-axis_dir,
         r=r1)
     obj1.makeAbsorptive()
@@ -57,7 +61,7 @@ if __name__ == "__main__":
             if res["status"] == "absorption":
                 endpt = res["rays"][-1]
                 _, n = coll.closestPrimitiveAndNormal(endpt)
-                im[i, j] = 0.2 - np.dot(n, ray_dir)
+                im[i, j] = 0.2 + abs(np.dot(n, ray_dir))
     plt.imshow(im[::-1])
     plt.colorbar()
     plt.show()
