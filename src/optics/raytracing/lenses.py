@@ -17,22 +17,22 @@ def lens_from_zemax_data(zemax_data, origin=None, direction=None):
     f2 = lambda _: 1.0
     for surf_info in zemax_data.surfaces:
         f1 = f2
-        # glass_ref = surf_info.glass_ref
-        # if glass_ref is not None and glass_ref.startswith("N-"):
-        #     glass_ref = glass_ref[2:]
-        # if glass_ref is not None:
-        #     f2 = Glass.from_library(glass_ref).n
-        # else:
-        #     f2 = lambda _: 1.0
         if surf_info.glass is not None:
             f2 = surf_info.glass.n
         else:
             f2 = lambda _: 1.0
-        surf = SphericalCap(
-            origin = origin + direction * z,
-            invRadius = surf_info.curvature,
-            r = 0.5 * surf_info.diameter,
-            direction = -direction)
+        if surf_info.conic_constant is not None:
+            raise NotImplementedError("non-default conic constant")
+        if surf_info.type == "STANDARD":
+            surf = SphericalCap(
+                origin = origin + direction * z,
+                invRadius = surf_info.curvature,
+                r = 0.5 * surf_info.diameter,
+                direction = -direction)
+        elif surf_info.type == "EVENASPH":
+            raise NotImplementedError("even asphere")
+        else:
+            raise NotImplementedError(f"surface type {surf_info.type}")
         lens.elements.append(surf)
         surf.makeRefractive(
             n = lambda lam, f1 = f1, f2 = f2: f2(lam) / f1(lam))
