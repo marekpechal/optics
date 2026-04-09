@@ -15,3 +15,10 @@ ax = plt.gca()
 lens2.draw(ax)
 
 plt.show()
+
+data = ZemaxData(
+    os.path.join("zmx_examples", "US004333714_Example01P.zmx"),
+    encoding="utf-8")
+lens = lens_from_zemax_data(data)
+lens.draw(plt.gca())
+plt.show()
