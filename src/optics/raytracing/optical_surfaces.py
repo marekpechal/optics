@@ -1,6 +1,7 @@
 """Library of optical surfaces"""
 
 import numpy as np
+import scipy
 import itertools
 from optics.raytracing import OpticalSurface
 from optics.utils import (
@@ -289,6 +290,41 @@ class PolynomialCap(OpticalSurface):
     def bbox(self):
         pt = self.origin
         return pt-self.r, pt+self.r
+
+class EvenAsphere(PolynomialCap):
+    def __init__(
+            self,
+            name='even asphere',
+            origin=None,
+            invRadius=1.0,
+            coefs=None,
+            direction=None,
+            r=0.5):
+        if coefs is None:
+            coefs = np.zeros(12)
+        if isinstance(coefs, dict):
+            coefs_arr = np.zeros(max(coefs.keys()))
+            for key, value in coefs.items():
+                coefs_arr[key-1] = value
+            coefs = coefs_arr
+
+        for n in range(1, len(coefs)+1):
+            coefs[n-1] += (
+                scipy.special.factorial2(2*n-1) * invRadius**(2*n-1) /
+                ((2*n-1)*scipy.special.factorial2(2*n))
+                )
+
+        coefs_all = np.zeros(2*len(coefs)+2)
+        coefs_all[2::2] = coefs
+
+        PolynomialCap.__init__(
+            self,
+            coefs_all,
+            name=name,
+            origin=origin,
+            direction=direction,
+            r=r,
+            )
 
 class ConicalSlice(OpticalSurface):
     def __init__(self,name='conical slice',origin=None,r1=1.0,r2=1.0,h=1.0,direction=None):

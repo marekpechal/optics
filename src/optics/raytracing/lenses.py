@@ -2,11 +2,21 @@
 
 import numpy as np
 from optics.raytracing import OpticalSurfaceCollection
-from optics.raytracing.optical_surfaces import SphericalCap, ConicalSlice
+from optics.raytracing.optical_surfaces import (
+    SphericalCap,
+    ConicalSlice,
+    EvenAsphere
+    )
 import optics.glass_library as gllib
 from optics.glass import Glass
 
-def lens_from_zemax_data(zemax_data, origin=None, direction=None):
+def lens_from_zemax_data(
+        zemax_data,
+        origin=None,
+        direction=None,
+        air_n=1.0,
+        ignore_aspheres=False,
+        ):
     if origin is None:
         origin = np.zeros(2)
     if direction is None:
@@ -14,23 +24,28 @@ def lens_from_zemax_data(zemax_data, origin=None, direction=None):
 
     lens = OpticalSurfaceCollection(zemax_data.name, [])
     z = 0.0
-    f2 = lambda _: 1.0
+    f2 = lambda _: air_n
     for surf_info in zemax_data.surfaces:
         f1 = f2
         if surf_info.glass is not None:
             f2 = surf_info.glass.n
         else:
-            f2 = lambda _: 1.0
+            f2 = lambda _: air_n
         if surf_info.conic_constant is not None:
             raise NotImplementedError("non-default conic constant")
-        if surf_info.type == "STANDARD":
+        if surf_info.type == "STANDARD" or ignore_aspheres:
             surf = SphericalCap(
                 origin = origin + direction * z,
                 invRadius = surf_info.curvature,
                 r = 0.5 * surf_info.diameter,
                 direction = -direction)
         elif surf_info.type == "EVENASPH":
-            raise NotImplementedError("even asphere")
+            surf = EvenAsphere(
+                origin = origin + direction * z,
+                invRadius = surf_info.curvature,
+                coefs = surf_info.parameters,
+                r = 0.5 * surf_info.diameter,
+                direction = -direction)
         else:
             raise NotImplementedError(f"surface type {surf_info.type}")
         lens.elements.append(surf)
