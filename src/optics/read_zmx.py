@@ -96,7 +96,7 @@ class ZemaxSurface:
             f"  is_stop: {self.is_stop}"
 
 class ZemaxData:
-    def __init__(self, filename, keep_only_lens_surfaces=True):
+    def __init__(self, filename, keep_only_lens_surfaces=True, encoding=None):
         self.surfaces = []
         self.additional_files = {}
         self.name = None
@@ -104,7 +104,8 @@ class ZemaxData:
         self.length_unit = None
         if filename.lower().endswith(".zmx"):
             with open(filename, "rb") as f:
-                self.raw_content = f.read().decode("utf-16")
+                self.raw_content = f.read().decode(
+                    "utf-16" if encoding is None else encoding)
         else:
             zmx_contents = None
             zmx_additional_files = []
@@ -112,7 +113,8 @@ class ZemaxData:
                 if f.file_name.lower().endswith(".zmx"):
                     if zmx_contents is not None:
                         raise ValueError("multiple zmx entries")
-                    self.raw_content = f.unpacked_contents.decode("utf-8")
+                    self.raw_content = f.unpacked_contents.decode(
+                        "utf-8" if encoding is None else encoding)
                 else:
                     self.additional_files[f.file_name] = f
 
