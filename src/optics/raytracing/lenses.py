@@ -16,6 +16,7 @@ def lens_from_zemax_data(
         direction=None,
         air_n=1.0,
         ignore_aspheres=False,
+        add_boundaries=True,
         ):
     if origin is None:
         origin = np.zeros(2)
@@ -24,7 +25,9 @@ def lens_from_zemax_data(
 
     lens = OpticalSurfaceCollection(zemax_data.name, [])
     z = 0.0
+    z_prev = None
     f2 = lambda _: air_n
+    r = None
     for surf_info in zemax_data.surfaces:
         f1 = f2
         if surf_info.glass is not None:
@@ -48,10 +51,25 @@ def lens_from_zemax_data(
                 direction = -direction)
         else:
             raise NotImplementedError(f"surface type {surf_info.type}")
+
         lens.elements.append(surf)
         surf.makeRefractive(
             n = lambda lam, f1 = f1, f2 = f2: f2(lam) / f1(lam))
+
+        r_prev = r
+        z_curr = z + surf.dz
+        r = surf_info.diameter / 2
+        if r_prev is not None and add_boundaries:
+            boundary = ConicalSlice(
+                origin=origin+direction*(z_curr+z_prev)/2,
+                r1=r_prev, r2=r, h=z_curr-z_prev,
+                direction=direction)
+            boundary.makeAbsorptive()
+            lens.elements.append(boundary)
+
+        z_prev = z_curr
         z += surf_info.distance_to_next
+
     return lens
 
 class SymmetricLens(OpticalSurfaceCollection):
