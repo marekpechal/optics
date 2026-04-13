@@ -266,6 +266,10 @@ class SphericalCap(OpticalSurface):
                 self.origin + pts2.transpose()
                 ]
 
+    @property
+    def dz(self):
+        return self.r**2*\
+            self.invRadius/(1+np.sqrt(1-(self.invRadius*self.r)**2))
 
     def distance(self,pt):
         pt = np.array(pt)
@@ -332,6 +336,10 @@ class PolynomialCap(OpticalSurface):
                 self.origin + pts1.transpose(),
                 self.origin + pts2.transpose()
                 ]
+
+    @property
+    def dz(self):
+        return np.polyval(self.coefs[::-1], self.r)
 
     def distance(self, pt):
         pt = np.array(pt)
@@ -403,14 +411,17 @@ class ConicalSlice(OpticalSurface):
         self.direction = direction
 
     def pointList(self):
-        n = np.array([[0,1],[-1,0]]).dot(self.direction)
-        return self.origin + np.array([
-            -0.5*self.h*self.direction+self.r1*n,
-            -0.5*self.h*self.direction-self.r1*n,
-            +0.5*self.h*self.direction-self.r2*n,
-            +0.5*self.h*self.direction+self.r2*n,
-            -0.5*self.h*self.direction+self.r1*n
-            ])
+        if len(self.origin) == 2:
+            n = np.array([[0,1],[-1,0]]).dot(self.direction)
+            return self.origin + np.array([
+                -0.5*self.h*self.direction+self.r1*n,
+                -0.5*self.h*self.direction-self.r1*n,
+                +0.5*self.h*self.direction-self.r2*n,
+                +0.5*self.h*self.direction+self.r2*n,
+                -0.5*self.h*self.direction+self.r1*n
+                ])
+        else:
+            return []
 
     def distance(self,pt):
         pt = np.array(pt)
