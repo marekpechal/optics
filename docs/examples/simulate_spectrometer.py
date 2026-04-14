@@ -4,7 +4,7 @@ import scipy.optimize
 
 import optics.raytracing as rt
 import optics.cie as cie
-from optics.raytracing.lenses import lens_from_zmx, lens_from_zemax_data
+from optics.raytracing.lenses import lens_from_zemax_data
 from optics.read_zmx import ZemaxData
 from optics.raytracing.optical_surfaces import Rectangle, Pinhole
 import optics.glass_library as gllib
@@ -23,55 +23,58 @@ def getRayBundleSpread(rays, position, normalVec):
 
 lens1 = lens_from_zemax_data(ZemaxData('zmax_49770.zmx'))
 lens2 = lens_from_zemax_data(ZemaxData('zmax_63697.zmx'),
-    origin = np.array([148.0, 0.0]),
-    direction = np.array([-1.0, 0.0]))
+    origin = np.array([148.0, 0.0, 0.0]),
+    direction = np.array([-1.0, 0.0, 0.0]))
 
 # position and orientation at "prism output"
-ptc = np.array([182.92883976, 4.66732297])
+ptc = np.array([182.92883976, 4.66732297, 0.0])
 meanAngle = 0.7401762236504678
-e = np.array([np.cos(meanAngle), np.sin(meanAngle)])
+e = np.array([np.cos(meanAngle), np.sin(meanAngle), 0.0])
 
-lens3 = lens_from_zmx('zmax_67151.zmx',
+lens3 = lens_from_zemax_data(ZemaxData('zmax_67151.zmx'),
     origin = ptc + 7.0 * e,
     direction = e)
 
 # edmundoptics #45-950; 151 USD
-prismCenter = np.array([180.0, 5.5])
+prismCenter = np.array([180.0, 5.5, 0.0])
 prismApexAngle = 90.0 * np.pi / 180
 prismRotation = -3.1
 prismSide = 15.0
 prismR = 0.5 * prismSide / np.cos(prismApexAngle / 2)
-ex = np.array([np.cos(prismRotation), np.sin(prismRotation)])
-ey = np.array([-np.sin(prismRotation), np.cos(prismRotation)])
+ex = np.array([np.cos(prismRotation), np.sin(prismRotation), 0.0])
+ey = np.array([-np.sin(prismRotation), np.cos(prismRotation), 0.0])
 prismPt1 = prismCenter + prismR * ex
 prismPt2 = prismCenter - prismR * ex * np.cos(prismApexAngle) + prismR * ey * np.sin(prismApexAngle)
 prismPt3 = prismCenter - prismR * ex * np.cos(prismApexAngle) - prismR * ey * np.sin(prismApexAngle)
+ez = np.array([0.0, 0.0, 1.0])
 prism = (
-    Rectangle((prismPt1 + prismPt2) / 2, [prismPt2 - prismPt1]) +
-    Rectangle((prismPt2 + prismPt3) / 2, [prismPt3 - prismPt2]) +
-    Rectangle((prismPt3 + prismPt1) / 2, [prismPt1 - prismPt3])
+    Rectangle((prismPt1 + prismPt2) / 2, [prismPt2 - prismPt1, ez]) +
+    Rectangle((prismPt2 + prismPt3) / 2, [prismPt3 - prismPt2, ez]) +
+    Rectangle((prismPt3 + prismPt1) / 2, [prismPt1 - prismPt3, ez])
     )
 prism.makeRefractive(gllib.n_SF11)
 
 
-pinhole = Pinhole(0.05, 20.0, origin = [105.7, 0.0])
+pinhole = Pinhole(0.05, 20.0, origin = [105.7, 0.0, 0.0])
 pinhole.makeAbsorptive()
 
-ptc = np.array([190.28242201, 11.44786648])
+ptc = np.array([190.28242201, 11.44786648, 0.0])
 meanAngle = 0.7392430303400024
-e = np.array([np.cos(meanAngle), np.sin(meanAngle)])
+e = np.array([np.cos(meanAngle), np.sin(meanAngle), 0.0])
 mirrorAngle = 1.9
-em = np.array([np.cos(mirrorAngle), np.sin(mirrorAngle)])
-mirror1 = Rectangle(ptc + 20.0 * e, [em * 20.0])
+em = np.array([np.cos(mirrorAngle), np.sin(mirrorAngle), 0.0])
+ez = np.array([0.0, 0.0, 1.0])
+mirror1 = Rectangle(ptc + 20.0 * e, [em * 20.0, ez])
 mirror1.makeReflective()
 
 
-ptc = np.array([203.71414796, 25.0384887])
+ptc = np.array([203.71414796, 25.0384887, 0.0])
 meanAngle = 3.0607569696599977
-e = np.array([np.cos(meanAngle), np.sin(meanAngle)])
+e = np.array([np.cos(meanAngle), np.sin(meanAngle), 0.0])
 mirrorAngle = 1.6
-em = np.array([np.cos(mirrorAngle), np.sin(mirrorAngle)])
-mirror2 = Rectangle(ptc + 180.0 * e, [em * 30.0])
+em = np.array([np.cos(mirrorAngle), np.sin(mirrorAngle), 0.0])
+ez = np.array([0.0, 0.0, 1.0])
+mirror2 = Rectangle(ptc + 180.0 * e, [em * 30.0, ez])
 mirror2.makeReflective()
 
 scene = lens1 + pinhole + lens2 + prism + lens3 + mirror1 + mirror2
@@ -93,7 +96,7 @@ for lam_nm, col in zip(lambdas, colors):
 
     finalRays = []
     for y in np.linspace(-10.0, 10.0, 11):
-        ray = rt.Ray([-10.0, y + 1e-6], [np.cos(phi), np.sin(phi)], {'wavelength': lam_nm * 1e-9})
+        ray = rt.Ray([-10.0, y + 1e-6, 0.0], [np.cos(phi), np.sin(phi), 0.0], {'wavelength': lam_nm * 1e-9})
         res = scene.rayTrace(ray, tol = 1e-6, ax = ax,
             maxrecursion = 15,
             coldct = {
@@ -110,13 +113,13 @@ for lam_nm, col in zip(lambdas, colors):
 
 finalRaysFlat = [ray for finalRays in finalRayBundles for ray in finalRays]
 
-dirs = [np.angle(np.dot([1,1j],ray.direction)) for ray in finalRaysFlat]
+dirs = [np.angle(np.dot([1,1j,0],ray.direction)) for ray in finalRaysFlat]
 meanAngle = (max(dirs) + min(dirs)) / 2
 
 print('angle spread =',max(dirs) - min(dirs))
 
-u = np.array([np.cos(meanAngle), np.sin(meanAngle)])
-w = np.array([-np.sin(meanAngle), np.cos(meanAngle)])
+u = np.array([np.cos(meanAngle), np.sin(meanAngle), 0.0])
+w = np.array([-np.sin(meanAngle), np.cos(meanAngle), 0.0])
 pte = sorted(finalRaysFlat, key = lambda ray: np.dot(u, ray.origin))[-1].origin
 
 ints = [ray.origin + ray.direction * np.dot(u, pte - ray.origin) / np.dot(u, ray.direction) for ray in finalRaysFlat]
@@ -141,7 +144,7 @@ for bundle in finalRayBundles:
     ydirs.append(lst)
 
 for ray in finalRaysFlat:
-    x, y = ray.origin
+    x, y, _ = ray.origin
     plt.plot(x, y, 'bo')
 
 plt.plot([pt1[0], pt2[0]], [pt1[1], pt2[1]], 'k--')

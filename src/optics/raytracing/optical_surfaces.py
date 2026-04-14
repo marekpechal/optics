@@ -51,47 +51,45 @@ class Rectangle(OpticalSurface):
 
 class Plane(OpticalSurface):
     def __init__(self,name='plane',origin=None,normal=None):
-        if origin is None: origin=np.zeros(2)
-        if normal is None: normal=np.array([1.,0.])
+        if origin is None:
+            origin=np.zeros(3)
+        if normal is None:
+            normal=np.array([1.0, 0.0, 0.0])
         OpticalSurface.__init__(self,name)
         self.origin = np.array(origin)
         self.normalVec = np.array(normal)
 
     def pointList(self):
-        if len(self.normalVec) == 2:
-            tangent = np.array([[0.,1.],[-1.,0.]]).dot(self.normalVec)
-            return np.array([
-                self.origin+100.0*tangent,
-                self.origin-100.0*tangent])
-        elif len(self.normalVec) == 3:
-            tangent1 = np.cross(self.normalVec, [0., 0., 1.])
-            tangent1 = tangent1 / np.linalg.norm(tangent1)
-            tangent2 = np.cross(self.normalVec, tangent1)
-            return [
-                np.array([
-                    self.origin+100.0*tangent1,
-                    self.origin-100.0*tangent1]),
-                np.array([
-                    self.origin+100.0*tangent2,
-                    self.origin-100.0*tangent2])
-                ]
+        tangent1 = np.cross(self.normalVec, [0., 0., 1.])
+        tangent1 = tangent1 / np.linalg.norm(tangent1)
+        tangent2 = np.cross(self.normalVec, tangent1)
+        return [
+            np.array([
+                self.origin+100.0*tangent1,
+                self.origin-100.0*tangent1]),
+            np.array([
+                self.origin+100.0*tangent2,
+                self.origin-100.0*tangent2])
+            ]
 
-    def distance(self,pt):
+    def distance(self, pt):
         pt = np.array(pt)
-        return abs(np.dot(pt-self.origin,self.normalVec))
+        return abs(np.dot(pt-self.origin, self.normalVec))
 
     def normal(self,pt):
         return self.normalVec.view(np.ndarray)
 
     def bbox(self):
         radius = 100.0
-        return self.origin-radius,self.origin+radius
+        return self.origin-radius, self.origin+radius
 
 class Pinhole(OpticalSurface):
     def __init__(self, inner_radius, outer_radius,
             name='pinhole', origin = None, normal = None):
-        if origin is None: origin=np.zeros(2)
-        if normal is None: normal=np.array([1.,0.])
+        if origin is None:
+            origin=np.zeros(3)
+        if normal is None:
+            normal=np.array([1.0, 0.0, 0.0])
         OpticalSurface.__init__(self,name)
         self.origin = np.array(origin)
         self.normalVec = np.array(normal)
@@ -99,34 +97,23 @@ class Pinhole(OpticalSurface):
         self.outer_radius = outer_radius
 
     def pointList(self):
-        if len(self.normalVec) == 2:
-            tangent = np.array([[0.,1.],[-1.,0.]]).dot(self.normalVec)
-            return [
-                np.array([
-                    self.origin + self.inner_radius * tangent,
-                    self.origin + self.outer_radius * tangent]),
-                np.array([
-                    self.origin - self.inner_radius * tangent,
-                    self.origin - self.outer_radius * tangent])
-                ]
-        elif len(self.normalVec) == 3:
-            tangent1 = np.cross(self.normalVec, [0., 0., 1.])
-            tangent1 = tangent1 / np.linalg.norm(tangent1)
-            tangent2 = np.cross(self.normalVec, tangent1)
-            return [
-                np.array([
-                    self.origin + self.inner_radius * tangent1,
-                    self.origin + self.outer_radius * tangent1]),
-                np.array([
-                    self.origin - self.inner_radius * tangent1,
-                    self.origin - self.outer_radius * tangent1]),
-                np.array([
-                    self.origin + self.inner_radius * tangent2,
-                    self.origin + self.outer_radius * tangent2]),
-                np.array([
-                    self.origin - self.inner_radius * tangent2,
-                    self.origin - self.outer_radius * tangent2])
-                ]
+        tangent1 = np.cross(self.normalVec, [0., 0., 1.])
+        tangent1 = tangent1 / np.linalg.norm(tangent1)
+        tangent2 = np.cross(self.normalVec, tangent1)
+        return [
+            np.array([
+                self.origin + self.inner_radius * tangent1,
+                self.origin + self.outer_radius * tangent1]),
+            np.array([
+                self.origin - self.inner_radius * tangent1,
+                self.origin - self.outer_radius * tangent1]),
+            np.array([
+                self.origin + self.inner_radius * tangent2,
+                self.origin + self.outer_radius * tangent2]),
+            np.array([
+                self.origin - self.inner_radius * tangent2,
+                self.origin - self.outer_radius * tangent2])
+            ]
 
     def distance(self, pt):
         pt = np.array(pt)
@@ -140,7 +127,7 @@ class Pinhole(OpticalSurface):
         else:
             return np.sqrt(d ** 2 + (r - self.inner_radius) ** 2)
 
-    def normal(self,pt):
+    def normal(self, pt):
         return self.normalVec.view(np.ndarray)
 
     def bbox(self):
@@ -150,9 +137,12 @@ class Pinhole(OpticalSurface):
 class Slit(OpticalSurface):
     def __init__(self, width, length, outer_radius,
             name='slit', origin = None, normal = None, slit_direction = None):
-        if origin is None: origin=np.zeros(3)
-        if normal is None: normal=np.array([1., 0. ,0.])
-        if slit_direction is None: slit_direction=np.array([0., 1. ,0.])
+        if origin is None:
+            origin=np.zeros(3)
+        if normal is None:
+            normal=np.array([1.0, 0.0, 0.0])
+        if slit_direction is None:
+            slit_direction=np.array([0.0, 1.0, 0.0])
         OpticalSurface.__init__(self,name)
         self.origin = np.array(origin)
         self.normalVec = np.array(normal)
@@ -162,34 +152,23 @@ class Slit(OpticalSurface):
         self.outer_radius = outer_radius
 
     def pointList(self): # TODO: update this!
-        if len(self.normalVec) == 2:
-            tangent = np.array([[0.,1.],[-1.,0.]]).dot(self.normalVec)
-            return [
-                np.array([
-                    self.origin + self.width/2 * tangent,
-                    self.origin + self.outer_radius * tangent]),
-                np.array([
-                    self.origin - self.width/2 * tangent,
-                    self.origin - self.outer_radius * tangent])
-                ]
-        elif len(self.normalVec) == 3:
-            tangent1 = np.cross(self.normalVec, [0., 0., 1.])
-            tangent1 = tangent1 / np.linalg.norm(tangent1)
-            tangent2 = np.cross(self.normalVec, tangent1)
-            return [
-                np.array([
-                    self.origin + self.width/2 * tangent1,
-                    self.origin + self.outer_radius * tangent1]),
-                np.array([
-                    self.origin - self.width/2 * tangent1,
-                    self.origin - self.outer_radius * tangent1]),
-                np.array([
-                    self.origin + self.width/2 * tangent2,
-                    self.origin + self.outer_radius * tangent2]),
-                np.array([
-                    self.origin - self.width/2 * tangent2,
-                    self.origin - self.outer_radius * tangent2])
-                ]
+        tangent1 = np.cross(self.normalVec, [0.0, 0.0, 1.0])
+        tangent1 = tangent1 / np.linalg.norm(tangent1)
+        tangent2 = np.cross(self.normalVec, tangent1)
+        return [
+            np.array([
+                self.origin + self.width/2 * tangent1,
+                self.origin + self.outer_radius * tangent1]),
+            np.array([
+                self.origin - self.width/2 * tangent1,
+                self.origin - self.outer_radius * tangent1]),
+            np.array([
+                self.origin + self.width/2 * tangent2,
+                self.origin + self.outer_radius * tangent2]),
+            np.array([
+                self.origin - self.width/2 * tangent2,
+                self.origin - self.outer_radius * tangent2])
+            ]
 
     def distance(self, pt):
         pt = np.array(pt)
@@ -214,22 +193,23 @@ class Slit(OpticalSurface):
 
 
 class Sphere(OpticalSurface):
-    def __init__(self,name='sphere',origin=None,radius=1.0):
-        if origin is None: origin=np.zeros(2)
-        OpticalSurface.__init__(self,name)
+    def __init__(self, name='sphere', origin=None, radius=1.0):
+        if origin is None:
+            origin=np.zeros(3)
+        OpticalSurface.__init__(self, name)
         self.origin = np.array(origin)
         self.radius = radius
 
     def pointList(self):
         return np.array([self.origin
-            +self.radius*np.array([np.cos(u),np.sin(u)])
-            for u in np.linspace(0,2*np.pi,1001)])
+            +self.radius*np.array([np.cos(u), np.sin(u)])
+            for u in np.linspace(0, 2*np.pi, 1001)])
 
-    def distance(self,pt):
+    def distance(self, pt):
         pt = np.array(pt)
         return abs(np.linalg.norm(pt-self.origin)-self.radius)
 
-    def normal(self,pt):
+    def normal(self, pt):
         x = pt-self.origin
         return x/np.linalg.norm(x)
 
@@ -237,9 +217,11 @@ class Sphere(OpticalSurface):
         return self.origin-self.radius,self.origin+self.radius
 
 class SphericalCap(OpticalSurface):
-    def __init__(self,name='spherical cap',origin=None,invRadius=1.0,direction=None,r=0.5):
-        if origin is None: origin=np.zeros(2)
-        if direction is None: direction=np.array([1.0,0.0])
+    def __init__(self, name="spherical cap", origin=None, invRadius=1.0, direction=None, r=0.5):
+        if origin is None:
+            origin=np.zeros(3)
+        if direction is None:
+            direction=np.array([1.0, 0.0, 0.0])
         OpticalSurface.__init__(self,name)
         self.origin = origin
         self.invRadius = invRadius
@@ -247,33 +229,28 @@ class SphericalCap(OpticalSurface):
         self.direction = direction
 
     def pointList(self):
-        x = np.linspace(-self.r,self.r,101)
+        x = np.linspace(-self.r, self.r, 101)
         y = x**2*self.invRadius/(1+np.sqrt(1-(self.invRadius*x)**2))
         pts = np.array([x,y])
         ey = -self.direction
-        if len(self.origin) == 2:
-            ex = np.array([[0,1],[-1,0]]).dot(self.direction)
-            pts = np.array([ex,ey]).transpose().dot(pts)
-            return self.origin+pts.transpose()
-        else:
-            ex1 = np.cross(self.direction, [0., 0., 1.])
-            ex1 = ex1 / np.linalg.norm(ex1)
-            ex2 = np.cross(self.direction, ex1)
-            pts1 = np.array([ex1,ey]).transpose().dot(pts)
-            pts2 = np.array([ex2,ey]).transpose().dot(pts)
-            return [
-                self.origin + pts1.transpose(),
-                self.origin + pts2.transpose()
-                ]
+        ex1 = np.cross(self.direction, [0.0, 0.0, 1.0])
+        ex1 = ex1 / np.linalg.norm(ex1)
+        ex2 = np.cross(self.direction, ex1)
+        pts1 = np.array([ex1,ey]).transpose().dot(pts)
+        pts2 = np.array([ex2,ey]).transpose().dot(pts)
+        return [
+            self.origin + pts1.transpose(),
+            self.origin + pts2.transpose()
+            ]
 
     @property
     def dz(self):
         return self.r**2*\
             self.invRadius/(1+np.sqrt(1-(self.invRadius*self.r)**2))
 
-    def distance(self,pt):
+    def distance(self, pt):
         pt = np.array(pt)
-        y = -np.dot(self.direction,pt-self.origin)
+        y = -np.dot(self.direction, pt-self.origin)
         x = np.linalg.norm(pt-self.origin+y*self.direction)
         A = (x**2+y**2)*self.invRadius-2*y
         A = A/(np.sqrt((x*self.invRadius)**2+(1-y*self.invRadius)**2)+1)
@@ -286,7 +263,7 @@ class SphericalCap(OpticalSurface):
 
     def normal(self, pt):
         pt = np.array(pt)
-        y = -np.dot(self.direction,pt-self.origin)
+        y = -np.dot(self.direction, pt-self.origin)
         x = np.linalg.norm(pt-self.origin+y*self.direction)
         ex = (pt-self.origin+y*self.direction)/x
         s = x*self.invRadius
@@ -297,7 +274,7 @@ class SphericalCap(OpticalSurface):
         y0 = self.r**2*self.invRadius/(
             1+np.sqrt(1-(self.r*self.invRadius)**2))
         pt = self.origin-self.direction*y0
-        return pt-self.r,pt+self.r
+        return pt-self.r, pt+self.r
 
 class PolynomialCap(OpticalSurface):
     def __init__(
@@ -308,9 +285,9 @@ class PolynomialCap(OpticalSurface):
             direction=None,
             r=0.5):
         if origin is None:
-            origin=np.zeros(2)
+            origin=np.zeros(3)
         if direction is None:
-            direction=np.array([1.0, 0.0])
+            direction=np.array([1.0, 0.0, 0.0])
         OpticalSurface.__init__(self, name)
         self.coefs = np.array(coefs)
         self.origin = origin
@@ -318,24 +295,19 @@ class PolynomialCap(OpticalSurface):
         self.direction = direction
 
     def pointList(self):
-        x = np.linspace(-self.r,self.r,101)
+        x = np.linspace(-self.r, self.r, 101)
         y = np.polyval(self.coefs[::-1], x)
         pts = np.array([x,y])
         ey = -self.direction
-        if len(self.origin) == 2:
-            ex = np.array([[0,1],[-1,0]]).dot(self.direction)
-            pts = np.array([ex,ey]).transpose().dot(pts)
-            return self.origin+pts.transpose()
-        else:
-            ex1 = np.cross(self.direction, [0., 0., 1.])
-            ex1 = ex1 / np.linalg.norm(ex1)
-            ex2 = np.cross(self.direction, ex1)
-            pts1 = np.array([ex1,ey]).transpose().dot(pts)
-            pts2 = np.array([ex2,ey]).transpose().dot(pts)
-            return [
-                self.origin + pts1.transpose(),
-                self.origin + pts2.transpose()
-                ]
+        ex1 = np.cross(self.direction, [0.0, 0.0, 1.0])
+        ex1 = ex1 / np.linalg.norm(ex1)
+        ex2 = np.cross(self.direction, ex1)
+        pts1 = np.array([ex1,ey]).transpose().dot(pts)
+        pts2 = np.array([ex2,ey]).transpose().dot(pts)
+        return [
+            self.origin + pts1.transpose(),
+            self.origin + pts2.transpose()
+            ]
 
     @property
     def dz(self):
@@ -400,48 +372,39 @@ class EvenAsphere(PolynomialCap):
             )
 
 class ConicalSlice(OpticalSurface):
-    def __init__(self,name='conical slice',origin=None,r1=1.0,r2=1.0,h=1.0,direction=None):
-        if origin is None: origin=np.zeros(2)
-        if direction is None: direction=np.array([1.0,0.0])
-        OpticalSurface.__init__(self,name)
-        self.origin = origin #np.array(origin)
+    def __init__(self, name="conical slice", origin=None, r1=1.0, r2=1.0, h=1.0, direction=None):
+        if origin is None:
+            origin=np.zeros(3)
+        if direction is None:
+            direction=np.array([1.0, 0.0, 0.0])
+        OpticalSurface.__init__(self, name)
+        self.origin = np.array(origin)
         self.r1 = r1
         self.r2 = r2
         self.h = h
         self.direction = direction
 
     def pointList(self):
-        if len(self.origin) == 2:
-            n = np.array([[0,1],[-1,0]]).dot(self.direction)
-            return self.origin + np.array([
-                -0.5*self.h*self.direction+self.r1*n,
-                -0.5*self.h*self.direction-self.r1*n,
-                +0.5*self.h*self.direction-self.r2*n,
-                +0.5*self.h*self.direction+self.r2*n,
-                -0.5*self.h*self.direction+self.r1*n
-                ])
-        else:
-            return []
+        return []
 
-    def distance(self,pt):
+    def distance(self, pt):
         pt = np.array(pt)
-        z = np.dot(self.direction,pt-self.origin)
+        z = np.dot(self.direction, pt-self.origin)
         R = np.linalg.norm(pt-self.origin)
         r = np.sqrt(R**2-z**2)
         dx = np.array([z,r-(self.r1+self.r2)/2])
-        ex = np.array([self.h,self.r2-self.r1])
+        ex = np.array([self.h, self.r2-self.r1])
         ex = ex/np.linalg.norm(ex)
-        ey = np.array([[0,-1],[1,0]]).dot(ex)
+        ey = np.array([[0, -1], [1, 0]]).dot(ex)
         X = np.dot(ex,dx)
         L = np.sqrt(self.h**2+(self.r1-self.r2)**2)
-        Y = abs(np.dot(ey,dx))
+        Y = abs(np.dot(ey, dx))
         if abs(X)<L/2:
             return Y
         else:
             return np.sqrt((abs(X)-L/2)**2+Y**2)
 
-
-    def normal(self,pt):
+    def normal(self, pt):
         pt = np.array(pt)
         ey=pt-self.origin-np.dot(self.direction,pt-self.origin)*self.direction
         ey = ey/np.linalg.norm(ey)

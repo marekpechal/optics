@@ -19,9 +19,9 @@ def lens_from_zemax_data(
         add_boundaries=True,
         ):
     if origin is None:
-        origin = np.zeros(2)
+        origin = np.zeros(3)
     if direction is None:
-        direction = np.array([1.0, 0.0])
+        direction = np.array([1.0, 0.0, 0.0])
 
     lens = OpticalSurfaceCollection(zemax_data.name, [])
     z = 0.0
@@ -81,8 +81,10 @@ class SymmetricLens(OpticalSurfaceCollection):
             centerThickness=0.4,
             direction=None):
         OpticalSurfaceCollection.__init__(self,"symmetric lens",[])
-        if origin is None: origin = [0.,0.]
-        if direction is None: direction = [1.,0.]
+        if origin is None:
+            origin = np.zeros(3)
+        if direction is None:
+            direction = np.array([1.0, 0.0, 0.0])
         self.origin = np.array(origin)
         self.radius = radius
         self.invR = invR
@@ -131,8 +133,10 @@ class SemiPlanarLens(OpticalSurfaceCollection):
             centerThickness=0.2,
             direction=None):
         OpticalSurfaceCollection.__init__(self,"semi-planar lens",[])
-        if origin is None: origin = [0.,0.]
-        if direction is None: direction = [1.,0.]
+        if origin is None:
+            origin = np.zeros(3)
+        if direction is None:
+            direction = np.array([1.0, 0.0, 0.0])
         self.origin = np.array(origin)
         self.radius = radius
         self.invR = invR
