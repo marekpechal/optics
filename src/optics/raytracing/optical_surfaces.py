@@ -14,25 +14,15 @@ class Rectangle(OpticalSurface):
         OpticalSurface.__init__(self, name)
         self.origin = np.array(origin)
         self.extents = np.array(extents)
-        if len(self.origin) == 2:
-            normal = self.extents[0][::-1] * np.array([1, -1])
-        else:
-            normal = np.cross(extents[0], extents[1])
+        normal = np.cross(extents[0], extents[1])
         normal = normal / np.linalg.norm(normal)
         self.normalVec = np.array(normal)
 
-    def pointList(self):
-        res = []
-        for i in range(len(self.extents)):
-            for p in itertools.product([-1, 1], repeat = len(self.extents) - 1):
-                v1 = np.array(p[:i] + (-1,) + p[i:])
-                v2 = np.array(p[:i] + (+1,) + p[i:])
-                p1 = self.origin + sum([x * u / 2 for x, u in zip(v1, self.extents)])
-                p2 = self.origin + sum([x * u / 2 for x, u in zip(v2, self.extents)])
-                res.append(np.array([p1, p2]))
-
-
-        return res
+    def drawing(self, projection_matrix):
+        pts3d = np.array([self.origin+x*self.extents[0]/2+y*self.extents[1]/2
+            for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
+        pts2d = (projection_matrix @ pts3d.T).T
+        return [pts2d]
 
     def distance(self,pt):
         z = np.dot(pt - self.origin, self.normalVec)
@@ -59,18 +49,15 @@ class Plane(OpticalSurface):
         self.origin = np.array(origin)
         self.normalVec = np.array(normal)
 
-    def pointList(self):
+    def drawing(self, projection_matrix):
         tangent1 = np.cross(self.normalVec, [0., 0., 1.])
         tangent1 = tangent1 / np.linalg.norm(tangent1)
         tangent2 = np.cross(self.normalVec, tangent1)
-        return [
-            np.array([
-                self.origin+100.0*tangent1,
-                self.origin-100.0*tangent1]),
-            np.array([
-                self.origin+100.0*tangent2,
-                self.origin-100.0*tangent2])
-            ]
+        extents = [100.0*tangent1, 100.0*tangent2]
+        pts3d = np.array([self.origin+x*extents[0]/2+y*extents[1]/2
+            for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
+        pts2d = (projection_matrix @ pts3d.T).T
+        return [pts2d]
 
     def distance(self, pt):
         pt = np.array(pt)
@@ -96,24 +83,15 @@ class Pinhole(OpticalSurface):
         self.inner_radius = inner_radius
         self.outer_radius = outer_radius
 
-    def pointList(self):
+    def drawing(self, projection_matrix):
         tangent1 = np.cross(self.normalVec, [0., 0., 1.])
         tangent1 = tangent1 / np.linalg.norm(tangent1)
         tangent2 = np.cross(self.normalVec, tangent1)
-        return [
-            np.array([
-                self.origin + self.inner_radius * tangent1,
-                self.origin + self.outer_radius * tangent1]),
-            np.array([
-                self.origin - self.inner_radius * tangent1,
-                self.origin - self.outer_radius * tangent1]),
-            np.array([
-                self.origin + self.inner_radius * tangent2,
-                self.origin + self.outer_radius * tangent2]),
-            np.array([
-                self.origin - self.inner_radius * tangent2,
-                self.origin - self.outer_radius * tangent2])
-            ]
+        pts = np.array([tangent1*np.cos(u)+tangent2*np.sin(u)
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2dA = (projection_matrix @ (pts*self.inner_radius+self.origin).T).T
+        pts2dB = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T
+        return [pts2dA, pts2dB]
 
     def distance(self, pt):
         pt = np.array(pt)
@@ -151,24 +129,16 @@ class Slit(OpticalSurface):
         self.length = length
         self.outer_radius = outer_radius
 
-    def pointList(self): # TODO: update this!
-        tangent1 = np.cross(self.normalVec, [0.0, 0.0, 1.0])
-        tangent1 = tangent1 / np.linalg.norm(tangent1)
-        tangent2 = np.cross(self.normalVec, tangent1)
-        return [
-            np.array([
-                self.origin + self.width/2 * tangent1,
-                self.origin + self.outer_radius * tangent1]),
-            np.array([
-                self.origin - self.width/2 * tangent1,
-                self.origin - self.outer_radius * tangent1]),
-            np.array([
-                self.origin + self.width/2 * tangent2,
-                self.origin + self.outer_radius * tangent2]),
-            np.array([
-                self.origin - self.width/2 * tangent2,
-                self.origin - self.outer_radius * tangent2])
-            ]
+    def drawing(self, projection_matrix):
+        ex = self.slit_direction
+        ey = np.cross(self.normalVec, self.slit_direction)
+        pts = np.array([ex*x*self.width/2+ey*y*self.length/2
+            for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
+        pts2dA = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T
+        pts = np.array([ex*np.cos(u)+ey*np.sin(u)
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2dB = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T
+        return [pts2dA, pts2dB]
 
     def distance(self, pt):
         pt = np.array(pt)
@@ -200,10 +170,15 @@ class Sphere(OpticalSurface):
         self.origin = np.array(origin)
         self.radius = radius
 
-    def pointList(self):
-        return np.array([self.origin
-            +self.radius*np.array([np.cos(u), np.sin(u)])
-            for u in np.linspace(0, 2*np.pi, 1001)])
+    def drawing(self, projection_matrix):
+        ez = np.cross(*projection_matrix)
+        ez = ez / np.linalg.norm(ez)
+        ex = projection_matrix[0] / np.linalg.norm(projection_matrix[0])
+        ey = np.cross(ez, ex)
+        pts = np.array([ex*np.cos(u)+ey*np.sin(u)
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2d = (projection_matrix @ (pts*self.radius+self.origin).T).T
+        return [pts2d]
 
     def distance(self, pt):
         pt = np.array(pt)
@@ -228,20 +203,23 @@ class SphericalCap(OpticalSurface):
         self.r = r
         self.direction = direction
 
-    def pointList(self):
-        x = np.linspace(-self.r, self.r, 101)
-        y = x**2*self.invRadius/(1+np.sqrt(1-(self.invRadius*x)**2))
-        pts = np.array([x,y])
-        ey = -self.direction
-        ex1 = np.cross(self.direction, [0.0, 0.0, 1.0])
-        ex1 = ex1 / np.linalg.norm(ex1)
-        ex2 = np.cross(self.direction, ex1)
-        pts1 = np.array([ex1,ey]).transpose().dot(pts)
-        pts2 = np.array([ex2,ey]).transpose().dot(pts)
-        return [
-            self.origin + pts1.transpose(),
-            self.origin + pts2.transpose()
-            ]
+    def drawing(self, projection_matrix):
+        ex = np.cross(self.direction, [0.0, 0.0, 1.0])
+        ex = ex / np.linalg.norm(ex)
+        ey = np.cross(self.direction, ex)
+        ez = -self.direction
+
+        R = np.linspace(-self.r, self.r, 101)
+        Z = R**2*self.invRadius/(1+np.sqrt(1-(self.invRadius*R)**2))
+
+        pts = np.array([ex*r+ez*z for r, z in zip(R, Z)])
+        pts2dA = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([ey*r+ez*z for r, z in zip(R, Z)])
+        pts2dB = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([ex*R[-1]*np.cos(u)+ey*R[-1]*np.sin(u)+ez*Z[-1]
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2dC = (projection_matrix @ (pts+self.origin).T).T
+        return [pts2dA, pts2dB, pts2dC]
 
     @property
     def dz(self):
@@ -294,20 +272,23 @@ class PolynomialCap(OpticalSurface):
         self.r = r
         self.direction = direction
 
-    def pointList(self):
-        x = np.linspace(-self.r, self.r, 101)
-        y = np.polyval(self.coefs[::-1], x)
-        pts = np.array([x,y])
-        ey = -self.direction
-        ex1 = np.cross(self.direction, [0.0, 0.0, 1.0])
-        ex1 = ex1 / np.linalg.norm(ex1)
-        ex2 = np.cross(self.direction, ex1)
-        pts1 = np.array([ex1,ey]).transpose().dot(pts)
-        pts2 = np.array([ex2,ey]).transpose().dot(pts)
-        return [
-            self.origin + pts1.transpose(),
-            self.origin + pts2.transpose()
-            ]
+    def drawing(self, projection_matrix):
+        ex = np.cross(self.direction, [0.0, 0.0, 1.0])
+        ex = ex / np.linalg.norm(ex)
+        ey = np.cross(self.direction, ex)
+        ez = -self.direction
+
+        R = np.linspace(-self.r, self.r, 101)
+        Z = np.polyval(self.coefs[::-1], R)
+
+        pts = np.array([ex*r+ez*z for r, z in zip(R, Z)])
+        pts2dA = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([ey*r+ez*z for r, z in zip(R, Z)])
+        pts2dB = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([ex*R[-1]*np.cos(u)+ey*R[-1]*np.sin(u)+ez*Z[-1]
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2dC = (projection_matrix @ (pts+self.origin).T).T
+        return [pts2dA, pts2dB, pts2dC]
 
     @property
     def dz(self):
@@ -384,8 +365,27 @@ class ConicalSlice(OpticalSurface):
         self.h = h
         self.direction = direction
 
-    def pointList(self):
-        return []
+    def drawing(self, projection_matrix):
+        ex = np.cross(self.direction, [0.0, 0.0, 1.0])
+        ex = ex / np.linalg.norm(ex)
+        ey = np.cross(self.direction, ex)
+        ez = self.direction
+
+        pts = np.array([ex*self.r1*np.cos(u)+ey*self.r1*np.sin(u)-ez*self.h/2
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2dA = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([ex*self.r2*np.cos(u)+ey*self.r2*np.sin(u)+ez*self.h/2
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2dB = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([ex*self.r1-ez*self.h/2, ex*self.r2+ez*self.h/2])
+        pts2dC1 = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([-ex*self.r1-ez*self.h/2, -ex*self.r2+ez*self.h/2])
+        pts2dC2 = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([ey*self.r1-ez*self.h/2, ey*self.r2+ez*self.h/2])
+        pts2dC3 = (projection_matrix @ (pts+self.origin).T).T
+        pts = np.array([-ey*self.r1-ez*self.h/2, -ey*self.r2+ez*self.h/2])
+        pts2dC4 = (projection_matrix @ (pts+self.origin).T).T
+        return [pts2dA, pts2dB, pts2dC1, pts2dC2, pts2dC3, pts2dC4]
 
     def distance(self, pt):
         pt = np.array(pt)

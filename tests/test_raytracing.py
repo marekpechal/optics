@@ -29,6 +29,7 @@ if __name__ == "__main__":
             direction = np.array([1.0, 0.0, 0.0]),
             air_n = 1.000277,
             ignore_aspheres = ignore_aspheres,
+            add_boundaries = False,
             )
         plane = Plane(origin=np.array([40.0, 0.0, 0.0]), normal=np.array([1.0, 0.0, 0.0]))
         plane.makeAbsorptive()

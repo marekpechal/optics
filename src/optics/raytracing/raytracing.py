@@ -459,15 +459,21 @@ class OpticalSurfaceCollection(object):
             color=None,
             showBbox=False,
             autoSetRange=True,
-            draw=True):
+            draw=True,
+            projection_matrix=None,
+            ):
         lst = []
         if draw:
+            if projection_matrix is None:
+                projection_matrix = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
             for p in getPrimitives(self):
-                pts = p.pointList()
+                pts = p.drawing(projection_matrix)
                 kw = {} if color is None else {"color":color}
                 if isinstance(pts, list):
                     for ptss in pts:
                         lst.append(ax.plot(ptss[:,0],ptss[:,1],"-",**kw)[0])
+                        if not "color" in kw:
+                            kw["color"] = lst[-1].get_color()
                 else:
                     lst.append(ax.plot(pts[:,0],pts[:,1],"-",**kw)[0])
 
