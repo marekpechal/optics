@@ -112,6 +112,44 @@ class Pinhole(OpticalSurface):
         radius = 100.0
         return self.origin - radius, self.origin + radius
 
+class Disk(OpticalSurface):
+    def __init__(self, radius,
+            name='disk', origin = None, normal = None):
+        if origin is None:
+            origin=np.zeros(3)
+        if normal is None:
+            normal=np.array([1.0, 0.0, 0.0])
+        OpticalSurface.__init__(self, name)
+        self.origin = np.array(origin)
+        self.normalVec = np.array(normal)
+        self.radius = radius
+
+    def drawing(self, projection_matrix):
+        tangent1 = np.cross(self.normalVec, [0., 0., 1.])
+        tangent1 = tangent1 / np.linalg.norm(tangent1)
+        tangent2 = np.cross(self.normalVec, tangent1)
+        pts = np.array([tangent1*np.cos(u)+tangent2*np.sin(u)
+            for u in np.linspace(0, 2*np.pi, 81)])
+        pts2d = (projection_matrix @ (pts*self.radius+self.origin).T).T
+        return [pts2d]
+
+    def distance(self, pt):
+        pt = np.array(pt)
+        d = np.dot(self.normalVec, pt - self.origin)
+        ptp = pt - self.normalVec * d
+        r = np.linalg.norm(ptp - self.origin)
+        if r > self.radius:
+            return np.sqrt(d ** 2 + (r - self.radius) ** 2)
+        else:
+            return abs(d)
+
+    def normal(self, pt):
+        return self.normalVec.view(np.ndarray)
+
+    def bbox(self):
+        radius = 100.0
+        return self.origin - radius, self.origin + radius
+
 class Slit(OpticalSurface):
     def __init__(self, width, length, outer_radius,
             name='slit', origin = None, normal = None, slit_direction = None):
@@ -134,7 +172,7 @@ class Slit(OpticalSurface):
         ey = np.cross(self.normalVec, self.dirVec)
         pts = np.array([ex*x*self.width/2+ey*y*self.length/2
             for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
-        pts2dA = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T
+        pts2dA = (projection_matrix @ (pts+self.origin).T).T
         pts = np.array([ex*np.cos(u)+ey*np.sin(u)
             for u in np.linspace(0, 2*np.pi, 81)])
         pts2dB = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T
