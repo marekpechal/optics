@@ -16,7 +16,7 @@ def makeAdderMethods(cls):
     2. appends the returned object to `obj.elements`
 
     This is used for instance for LightSource which has classmethods
-    such as `pointSource`. Then the automatically added `addPointSource`
+    such as `point_source`. Then the automatically added `addpoint_source`
     can be used to add elementary point sources to a composite LightSource.
     """
     def makeAdderMethod(name):
@@ -38,7 +38,7 @@ def onPrimitives(combiningFunc=None):
         def wrapper(*args, **kwargs):
             self = args[0]
             lst = [f(*((obj,)+args[1:]), **kwargs)
-                for obj in getPrimitives(self)]
+                for obj in get_primitives(self)]
             if combiningFunc is not None:
                 return combiningFunc(lst)
         return wrapper
@@ -72,10 +72,10 @@ def attachMethodsFromFile(fname):
         return cls
     return decorator
 
-def getPrimitives(collection):
+def get_primitives(collection):
     if isinstance(collection, OpticalSurfaceCollection):
         for element in collection.elements:
-            yield from getPrimitives(element)
+            yield from get_primitives(element)
     else:
         yield collection
 
@@ -109,15 +109,15 @@ class LightSource(object):
 
         self.parameters = {"wavelength": 500.0e-9}
 
-    def rayTrace(self, opticalSystem):
+    def raytrace(self, opticalSystem):
         self.result = []
-        for ray in self.getRays():
-            self.result.append(opticalSystem.rayTrace(ray))
+        for ray in self.get_rays():
+            self.result.append(opticalSystem.raytrace(ray))
 
-    def getRays(self):
+    def get_rays(self):
         for element in self.elements:
             if isinstance(element, LightSource):
-                yield from element.getRays()
+                yield from element.get_rays()
             else:
                 yield element
 
@@ -160,11 +160,11 @@ class LightSource(object):
 
         return res
 
-    def addRay(self):
+    def add_ray(self):
         self.elements.append(Ray([0.0, 0.0], [1.0, 0.0], {}))
 
     @classmethod
-    def pointSource(cls):
+    def point_source(cls):
         numRays = 16
         offset = 0.0
         origin = np.array([0.0, 0.0])
@@ -187,7 +187,7 @@ class LightSource(object):
         return obj
 
     @classmethod
-    def dirSource(cls):
+    def dir_source(cls):
         numRays = 16
         origin = np.array([-50.0, 0.0])
         beamWidth = 20.0
@@ -384,32 +384,42 @@ class SurfaceRayInteraction(object):
         return obj
 
 class OpticalSurface(object):
-    def __init__(self,name):
+    def __init__(self, name):
         self.__name__ = name
-        self.surfaceRayInteraction = SurfaceRayInteraction.transparent()
+        self.surface_ray_interaction = SurfaceRayInteraction.transparent()
 
-    def asCollection(self):
+    def as_collection(self):
         return OpticalSurfaceCollection(self.__name__,[self])
 
     def __add__(self,other):
         return OpticalSurfaceCollection(
             "union("+self.__name__+","+other.__name__+")",
-            self.asCollection().elements+other.asCollection().elements)
+            self.as_collection().elements+other.as_collection().elements)
 
-    def makeReflective(self):
-        self.surfaceRayInteraction = SurfaceRayInteraction.mirror()
+    def make_reflective(self):
+        self.surface_ray_interaction = \
+            SurfaceRayInteraction.mirror()
+        return self
 
-    def makeRefractive(self, n = 1.5):
-        self.surfaceRayInteraction = SurfaceRayInteraction.refraction(n)
+    def make_refractive(self, n = 1.5):
+        self.surface_ray_interaction = \
+            SurfaceRayInteraction.refraction(n)
+        return self
 
-    def makeAbsorptive(self):
-        self.surfaceRayInteraction = SurfaceRayInteraction.absorber()
+    def make_absorptive(self):
+        self.surface_ray_interaction = \
+            SurfaceRayInteraction.absorber()
+        return self
 
-    def makeGrating(self, lineDensity = 1e6):
-        self.surfaceRayInteraction = SurfaceRayInteraction.grating(np.array([0.,2*np.pi*lineDensity]))
+    def make_grating(self, lineDensity = 1e6):
+        self.surface_ray_interaction = \
+            SurfaceRayInteraction.grating(np.array([0.,2*np.pi*lineDensity]))
+        return self
 
-    def makeReflGrating(self, lineDensity = 1e6):
-        self.surfaceRayInteraction = SurfaceRayInteraction.refl_grating(np.array([0.,2*np.pi*lineDensity]))
+    def make_refl_grating(self, lineDensity = 1e6):
+        self.surface_ray_interaction = \
+            SurfaceRayInteraction.refl_grating(np.array([0.,2*np.pi*lineDensity]))
+        return self
 
     def geometry(self):
         pts = self.pointList()
@@ -433,21 +443,19 @@ class OpticalSurface(object):
             of OpticalSurface
         """)
 
-
-#@attachMethodsFromFile("lenses.txt")
 class OpticalSurfaceCollection(object):
     def __init__(self,name,elements):
         self.__name__ = name
         self.elements = elements
         self.attrLinks = []
 
-    def asCollection(self):
+    def as_collection(self):
         return self
 
     def __add__(self,other):
         return OpticalSurfaceCollection(
             "union("+self.__name__+","+other.__name__+")",
-            self.elements+other.asCollection().elements)
+            self.elements+other.as_collection().elements)
 
     def __setattr__(self,name,val):
         if hasattr(self,"attrLinks") and name in self.attrLinks:
@@ -466,7 +474,7 @@ class OpticalSurfaceCollection(object):
         if draw:
             if projection_matrix is None:
                 projection_matrix = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
-            for p in getPrimitives(self):
+            for p in get_primitives(self):
                 pts = p.drawing(projection_matrix)
                 kw = {} if color is None else {"color":color}
                 if isinstance(pts, list):
@@ -494,10 +502,10 @@ class OpticalSurfaceCollection(object):
 
         return lst
 
-    def rayTrace(self, ray, maxrecursion=12, tol=1e-6):
+    def raytrace(self, ray, maxrecursion=12, tol=1e-6):
         if maxrecursion == 0:
             return [{"rays": [ray], "status": "maxrecursion"}]
-        pt,p,normal,distance,_,status = self.findRayIntersection(
+        pt,p,normal,distance,_,status = self.find_ray_intersection(
             ray.origin,
             ray.direction.view(np.ndarray),
             tol=tol)
@@ -507,10 +515,10 @@ class OpticalSurfaceCollection(object):
             res = [{"rays": [ray], "status": "maxsteps"}]
         else:
             res = []
-            raysAfter = p.surfaceRayInteraction(ray, pt, normal, tol)
+            raysAfter = p.surface_ray_interaction(ray, pt, normal, tol)
             if raysAfter:
                 for ray2 in raysAfter:
-                    subTrace = self.rayTrace(ray2,
+                    subTrace = self.raytrace(ray2,
                         maxrecursion=maxrecursion-1, tol=tol)
                     for subres in subTrace:
                         res.append({
@@ -525,7 +533,7 @@ class OpticalSurfaceCollection(object):
 
         return res
 
-    def findRayIntersection(self, origin, rdir,
+    def find_ray_intersection(self, origin, rdir,
             maxsteps = 1000,
             tol = 1e-6):
         bbox = self.bbox()
@@ -547,20 +555,20 @@ class OpticalSurfaceCollection(object):
             if np.any(a*pt > b):
                 return pt, None, None, dist, c, "escape"
             if dist < tol:
-                p,normal = self.closestPrimitiveAndNormal(pt)
+                p,normal = self.closest_primitive_and_normal(pt)
                 return pt, p, normal, dist, c, "tol"
             pt += dist*rdir
 
-        p, normal = self.closestPrimitiveAndNormal(pt)
+        p, normal = self.closest_primitive_and_normal(pt)
         return pt, p, normal, dist, maxsteps, "maxsteps"
 
-    def closestPrimitiveAndNormal(self,pt):
-        lst = [(p.distance(pt), p, p.normal(pt)) for p in getPrimitives(self)]
+    def closest_primitive_and_normal(self,pt):
+        lst = [(p.distance(pt), p, p.normal(pt)) for p in get_primitives(self)]
         return sorted(lst, key=lambda p:p[0])[0][1:]
 
     def geometry(self):
         res = []
-        for p in getPrimitives(self):
+        for p in get_primitives(self):
             res += p.geometry()
         return res
 
@@ -572,20 +580,23 @@ class OpticalSurfaceCollection(object):
     def bbox(self):
         return self.bbox()
 
-    def makeReflective(self):
-        self.surfaceRayInteraction = SurfaceRayInteraction.mirror()
-        for obj in getPrimitives(self):
-            obj.surfaceRayInteraction = self.surfaceRayInteraction
+    def make_reflective(self):
+        self.surface_ray_interaction = SurfaceRayInteraction.mirror()
+        for obj in get_primitives(self):
+            obj.surface_ray_interaction = self.surface_ray_interaction
+        return self
 
-    def makeRefractive(self,n=1.5):
-        self.surfaceRayInteraction = SurfaceRayInteraction.refraction(n)
-        for obj in getPrimitives(self):
-            obj.surfaceRayInteraction = self.surfaceRayInteraction
+    def make_refractive(self,n=1.5):
+        self.surface_ray_interaction = SurfaceRayInteraction.refraction(n)
+        for obj in get_primitives(self):
+            obj.surface_ray_interaction = self.surface_ray_interaction
+        return self
 
-    def makeAbsorptive(self):
-        self.surfaceRayInteraction = SurfaceRayInteraction.absorber()
-        for obj in getPrimitives(self):
-            obj.surfaceRayInteraction = self.surfaceRayInteraction
+    def make_absorptive(self):
+        self.surface_ray_interaction = SurfaceRayInteraction.absorber()
+        for obj in get_primitives(self):
+            obj.surface_ray_interaction = self.surface_ray_interaction
+        return self
 
 def draw_raytracing_result(result, ax, projection_matrix=None, coldct=None):
     if coldct is None:

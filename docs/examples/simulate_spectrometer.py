@@ -51,12 +51,10 @@ prism = (
     Rectangle((prismPt1 + prismPt2) / 2, [prismPt2 - prismPt1, ez]) +
     Rectangle((prismPt2 + prismPt3) / 2, [prismPt3 - prismPt2, ez]) +
     Rectangle((prismPt3 + prismPt1) / 2, [prismPt1 - prismPt3, ez])
-    )
-prism.makeRefractive(gllib.n_SF11)
+    ).make_refractive(gllib.n_SF11)
 
 
-pinhole = Pinhole(0.05, 20.0, origin = [105.7, 0.0, 0.0])
-pinhole.makeAbsorptive()
+pinhole = Pinhole(0.05, 20.0, origin = [105.7, 0.0, 0.0]).make_absorptive()
 
 ptc = np.array([190.28242201, 11.44786648, 0.0])
 meanAngle = 0.7392430303400024
@@ -64,8 +62,7 @@ e = np.array([np.cos(meanAngle), np.sin(meanAngle), 0.0])
 mirrorAngle = 1.9
 em = np.array([np.cos(mirrorAngle), np.sin(mirrorAngle), 0.0])
 ez = np.array([0.0, 0.0, 1.0])
-mirror1 = Rectangle(ptc + 20.0 * e, [em * 20.0, ez])
-mirror1.makeReflective()
+mirror1 = Rectangle(ptc + 20.0 * e, [em * 20.0, ez]).make_reflective()
 
 
 ptc = np.array([203.71414796, 25.0384887, 0.0])
@@ -74,8 +71,7 @@ e = np.array([np.cos(meanAngle), np.sin(meanAngle), 0.0])
 mirrorAngle = 1.6
 em = np.array([np.cos(mirrorAngle), np.sin(mirrorAngle), 0.0])
 ez = np.array([0.0, 0.0, 1.0])
-mirror2 = Rectangle(ptc + 180.0 * e, [em * 30.0, ez])
-mirror2.makeReflective()
+mirror2 = Rectangle(ptc + 180.0 * e, [em * 30.0, ez]).make_reflective()
 
 scene = lens1 + pinhole + lens2 + prism + lens3 + mirror1 + mirror2
 
@@ -97,7 +93,7 @@ for lam_nm, col in zip(lambdas, colors):
     finalRays = []
     for y in np.linspace(-10.0, 10.0, 11):
         ray = rt.Ray([-10.0, y + 1e-6, 0.0], [np.cos(phi), np.sin(phi), 0.0], {'wavelength': lam_nm * 1e-9})
-        res = scene.rayTrace(ray, tol = 1e-6, maxrecursion = 15)
+        res = scene.raytrace(ray, tol = 1e-6, maxrecursion = 15)
         rt.draw_raytracing_result(res, ax, coldct = {
             'escape': col,
             'maxsteps': 'black',

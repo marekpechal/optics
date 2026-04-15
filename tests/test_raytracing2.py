@@ -35,15 +35,16 @@ if __name__ == "__main__":
             direction = np.array([1.0, 0.0, 0.0]),
             air_n = 1.000277,
             )
-        plane = Plane(origin=np.array([80.04, 0.0, 0.0]), normal=np.array([1.0, 0.0, 0.0]))
-        plane.makeAbsorptive()
+        plane = Plane(
+            origin=np.array([80.04, 0.0, 0.0]),
+            normal=np.array([1.0, 0.0, 0.0])).make_absorptive()
 
         collection = OpticalSurfaceCollection("collection", [lens, plane])
 
         for lam_nm in [450.0, 587.5618, 650.0]:
             for y in np.linspace(-5.0, 5.0, 10):
                 ray = Ray(np.array([-50.0, y, 0.0]), np.array([1.0, 0.0, 0.0]), {"wavelength": lam_nm * 1e-9})
-                result = collection.rayTrace(ray, maxrecursion=20)
+                result = collection.raytrace(ray, maxrecursion=20)
                 draw_raytracing_result(result, plt.gca(),
                     coldct = {
                         "maxrecursion": "red",

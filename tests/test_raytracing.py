@@ -35,15 +35,16 @@ if __name__ == "__main__":
             ignore_aspheres = ignore_aspheres,
             add_boundaries = False,
             )
-        plane = Plane(origin=np.array([40.0, 0.0, 0.0]), normal=np.array([1.0, 0.0, 0.0]))
-        plane.makeAbsorptive()
+        plane = Plane(
+            origin=np.array([40.0, 0.0, 0.0]),
+            normal=np.array([1.0, 0.0, 0.0])).make_absorptive()
 
         collection = OpticalSurfaceCollection("collection", [lens, plane])
 
         for lam_nm in [450.0, 587.5618, 650.0]:
             for y in np.linspace(-4.4, 4.4, 10):
                 ray = Ray(np.array([-5.0, y, 0.0]), np.array([1.0, 0.0, 0.0]), {"wavelength": lam_nm * 1e-9})
-                result = collection.rayTrace(ray)
+                result = collection.raytrace(ray)
                 draw_raytracing_result(result, plt.gca(), coldct = {
                     "absorption": np.concatenate((spectral_color_srgb(lam_nm, amp=0.3), [0.2]))
                     })

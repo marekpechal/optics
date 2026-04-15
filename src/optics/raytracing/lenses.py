@@ -53,7 +53,7 @@ def lens_from_zemax_data(
             raise NotImplementedError(f"surface type {surf_info.type}")
 
         lens.elements.append(surf)
-        surf.makeRefractive(
+        surf.make_refractive(
             n = lambda lam, f1 = f1, f2 = f2: f2(lam) / f1(lam))
 
         r_prev = r
@@ -64,7 +64,7 @@ def lens_from_zemax_data(
                 origin=origin+direction*(z_curr+z_prev)/2,
                 r1=r_prev, r2=r, h=z_curr-z_prev,
                 direction=direction)
-            boundary.makeAbsorptive()
+            boundary.make_absorptive()
             lens.elements.append(boundary)
 
         z_prev = z_curr

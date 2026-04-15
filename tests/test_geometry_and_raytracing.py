@@ -29,23 +29,20 @@ if __name__ == "__main__":
         coefs1,
         origin=np.array([x1*np.cos(th), 0.0, x1*np.sin(th)]),
         direction=-axis_dir,
-        r=r1)
-    obj1.makeAbsorptive()
+        r=r1).make_absorptive()
 
     obj2 = SphericalCap(
         origin=np.array([x2*np.cos(th), 0.0, x2*np.sin(th)]),
         invRadius=1/R2,
         direction=axis_dir,
-        r=r2)
-    obj2.makeAbsorptive()
+        r=r2).make_absorptive()
 
     obj3 = ConicalSlice(
         origin=np.array([0.0, 0.0, 0.0]),
         r1=r1,
         r2=r2,
         h=d,
-        direction=axis_dir)
-    obj3.makeAbsorptive()
+        direction=axis_dir).make_absorptive()
 
     coll = OpticalSurfaceCollection("collection", [obj1, obj2, obj3])
 
@@ -57,10 +54,10 @@ if __name__ == "__main__":
     for i, y in enumerate(yrng):
         for j, x in enumerate(xrng):
             ray = Ray(np.array([x, y, -10.0]), ray_dir, {})
-            res = coll.rayTrace(ray)[0]
+            res = coll.raytrace(ray)[0]
             if res["status"] == "absorption":
                 endpt = res["rays"][-1]
-                _, n = coll.closestPrimitiveAndNormal(endpt)
+                _, n = coll.closest_primitive_and_normal(endpt)
                 im[i, j] = 0.2 + abs(np.dot(n, ray_dir))
     plt.imshow(im[::-1])
     plt.colorbar()
