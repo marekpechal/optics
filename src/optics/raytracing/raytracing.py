@@ -5,6 +5,7 @@ import os
 import types
 import scipy.interpolate
 import itertools
+from optics.cie import spectral_color_srgb
 
 # decorators =======
 def makeAdderMethods(cls):
@@ -604,7 +605,6 @@ def draw_raytracing_result(result, ax, projection_matrix=None, coldct=None):
             "escape": "green",
             "maxsteps": "red",
             "maxrecursion": "orange",
-            "absorption": "blue"
             }
     if projection_matrix is None:
         projection_matrix = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
@@ -616,4 +616,16 @@ def draw_raytracing_result(result, ax, projection_matrix=None, coldct=None):
             pts.append(pts[-1]+1e6*findir)
         pts = np.array(pts)
         pts = (projection_matrix @ pts.T).T
-        ax.plot(pts[:,0], pts[:,1], ".-", color=coldct[bunch["status"]])
+        if bunch["status"] == "absorption" and not "absorption" in coldct:
+            if not "wavelength" in bunch["rays"][0].parameters:
+                color = "blue"
+            else:
+                color = np.concatenate((
+                    spectral_color_srgb(
+                        bunch["rays"][0].parameters["wavelength"]/1e-9,
+                        amp=0.3),
+                    [0.2]
+                    ))
+        else:
+            color = coldct[bunch["status"]]
+        ax.plot(pts[:,0], pts[:,1], ".-", color=color)
