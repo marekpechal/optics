@@ -130,8 +130,8 @@ class Slit(OpticalSurface):
         self.outer_radius = outer_radius
 
     def drawing(self, projection_matrix):
-        ex = self.slit_direction
-        ey = np.cross(self.normalVec, self.slit_direction)
+        ex = self.dirVec
+        ey = np.cross(self.normalVec, self.dirVec)
         pts = np.array([ex*x*self.width/2+ey*y*self.length/2
             for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
         pts2dA = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T

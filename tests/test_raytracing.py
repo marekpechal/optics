@@ -6,7 +6,11 @@ from optics.raytracing.optical_surfaces import (
     )
 from optics.read_zmx import ZemaxData
 from optics.raytracing.lenses import lens_from_zemax_data
-from optics.raytracing import Ray, OpticalSurfaceCollection
+from optics.raytracing import (
+    Ray,
+    OpticalSurfaceCollection,
+    draw_raytracing_result,
+    )
 from optics.cie import spectral_color_srgb
 import numpy as np
 import matplotlib.pyplot as plt
@@ -39,9 +43,10 @@ if __name__ == "__main__":
         for lam_nm in [450.0, 587.5618, 650.0]:
             for y in np.linspace(-4.4, 4.4, 10):
                 ray = Ray(np.array([-5.0, y, 0.0]), np.array([1.0, 0.0, 0.0]), {"wavelength": lam_nm * 1e-9})
-                collection.rayTrace(ray, ax=plt.gca(), coldct = {
+                result = collection.rayTrace(ray)
+                draw_raytracing_result(result, plt.gca(), coldct = {
                     "absorption": np.concatenate((spectral_color_srgb(lam_nm, amp=0.3), [0.2]))
-                })
+                    })
 
         collection.draw(plt.gca())
 

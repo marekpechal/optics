@@ -3,7 +3,8 @@ import numpy as np
 from optics.raytracing import (
     Ray,
     SurfaceRayInteraction,
-    OpticalSurfaceCollection
+    OpticalSurfaceCollection,
+    draw_raytracing_result
     )
 from optics.raytracing.optical_surfaces import Sphere
 
@@ -23,7 +24,8 @@ if __name__ == "__main__":
     y = 1.0
     for angle in np.linspace(-0.5, 0.5, 21):
         ray = Ray([-3.0, y, 0.0], [np.cos(angle), np.sin(angle), 0.0], {})
-        group.rayTrace(ray, tol=1e-6, ax=ax)
+        result = group.rayTrace(ray, tol=1e-6)
+        draw_raytracing_result(result, ax)
 
     plt.axis('off')
     plt.show()

@@ -97,16 +97,15 @@ for lam_nm, col in zip(lambdas, colors):
     finalRays = []
     for y in np.linspace(-10.0, 10.0, 11):
         ray = rt.Ray([-10.0, y + 1e-6, 0.0], [np.cos(phi), np.sin(phi), 0.0], {'wavelength': lam_nm * 1e-9})
-        res = scene.rayTrace(ray, tol = 1e-6, ax = ax,
-            maxrecursion = 15,
-            coldct = {
-                'escape': col,
-                'maxsteps': 'black',
-                'maxrecursion': 'black',
-                'absorption': (0, 0, 0, 0.1)
+        res = scene.rayTrace(ray, tol = 1e-6, maxrecursion = 15)
+        rt.draw_raytracing_result(res, ax, coldct = {
+            'escape': col,
+            'maxsteps': 'black',
+            'maxrecursion': 'black',
+            'absorption': (0, 0, 0, 0.1)
             })
-        if hasattr(res[0][0]['rays'][-1], 'direction'):
-            finalRays.append(res[0][0]['rays'][-1])
+        if hasattr(res[0]['rays'][-1], 'direction'):
+            finalRays.append(res[0]['rays'][-1])
     finalRayBundles.append(finalRays)
 
 # POSTPROCESSING

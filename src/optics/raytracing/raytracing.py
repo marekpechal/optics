@@ -494,7 +494,7 @@ class OpticalSurfaceCollection(object):
 
         return lst
 
-    def rayTrace(self, ray, maxrecursion=12, tol=1e-6, ax=None, coldct=None):
+    def rayTrace(self, ray, maxrecursion=12, tol=1e-6):
         if maxrecursion == 0:
             return [{"rays": [ray], "status": "maxrecursion"}]
         pt,p,normal,distance,_,status = self.findRayIntersection(
@@ -511,7 +511,7 @@ class OpticalSurfaceCollection(object):
             if raysAfter:
                 for ray2 in raysAfter:
                     subTrace = self.rayTrace(ray2,
-                        maxrecursion=maxrecursion-1, tol=tol, ax=None)
+                        maxrecursion=maxrecursion-1, tol=tol)
                     for subres in subTrace:
                         res.append({
                             "rays": [ray]+subres["rays"],
@@ -522,30 +522,6 @@ class OpticalSurfaceCollection(object):
                     "rays": [ray, pt],
                     "status": "absorption"
                     })
-
-
-        if ax is not None:
-            if coldct is None:
-                coldct = {
-                    "escape": "green",
-                    "maxsteps": "red",
-                    "maxrecursion": "orange",
-                    "absorption": "blue"
-                }
-            axc = []
-            for bunch in res:
-                pts = [(ray.origin if isinstance(ray, Ray) else ray)
-                    for ray in bunch["rays"]]
-                if bunch["status"] == "escape":
-                    findir = bunch["rays"][-1].direction.view(np.ndarray)
-                    pts.append(pts[-1]+1e6*findir)
-                pts = np.array(pts)
-                axc.append(
-                    ax.plot(pts[:,0], pts[:,1],
-                        ".-", color=coldct[bunch["status"]])[0]
-                    )
-
-            return res,axc
 
         return res
 
@@ -610,3 +586,23 @@ class OpticalSurfaceCollection(object):
         self.surfaceRayInteraction = SurfaceRayInteraction.absorber()
         for obj in getPrimitives(self):
             obj.surfaceRayInteraction = self.surfaceRayInteraction
+
+def draw_raytracing_result(result, ax, projection_matrix=None, coldct=None):
+    if coldct is None:
+        coldct = {
+            "escape": "green",
+            "maxsteps": "red",
+            "maxrecursion": "orange",
+            "absorption": "blue"
+            }
+    if projection_matrix is None:
+        projection_matrix = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    for bunch in result:
+        pts = [(ray.origin if isinstance(ray, Ray) else ray)
+            for ray in bunch["rays"]]
+        if bunch["status"] == "escape":
+            findir = bunch["rays"][-1].direction.view(np.ndarray)
+            pts.append(pts[-1]+1e6*findir)
+        pts = np.array(pts)
+        pts = (projection_matrix @ pts.T).T
+        ax.plot(pts[:,0], pts[:,1], ".-", color=coldct[bunch["status"]])
