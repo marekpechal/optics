@@ -4,7 +4,7 @@ import matplotlib.cm
 import os
 import types
 import scipy.interpolate
-import itertools
+import itertools, copy
 from optics.cie import spectral_color_srgb
 
 # decorators =======
@@ -504,6 +504,7 @@ class OpticalSurfaceCollection(object):
         return lst
 
     def raytrace(self, ray, maxrecursion=12, tol=1e-6):
+        ray = copy.deepcopy(ray)
         if maxrecursion == 0:
             return [{"rays": [ray], "status": "maxrecursion"}]
         pt,p,normal,distance,_,status = self.find_ray_intersection(
