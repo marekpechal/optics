@@ -1,4 +1,35 @@
 import numpy as np
+import dill
+import multiprocessing
+import logging
+
+logger_multiprocessing = logging.getLogger("multiprocessing")
+
+class Process(multiprocessing.Process):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._target = dill.dumps(self._target)
+        self._args = Process._pickle_args(self._args)
+
+    @staticmethod
+    def _pickle_args(args):
+        return tuple((dill.dumps(obj)
+                if not isinstance(obj, multiprocessing.queues.Queue) else obj)
+            for obj in args)
+
+    @staticmethod
+    def _unpickle_args(args):
+        return tuple((dill.loads(obj)
+                if not isinstance(obj, multiprocessing.queues.Queue) else obj)
+            for obj in args)
+
+    def run(self):
+        if self._target:
+            self._target = dill.loads(self._target)
+            self._args = Process._unpickle_args(self._args)
+            logger_multiprocessing.debug(f"starting process {self}")
+            self._target(*self._args, **self._kwargs)
 
 def coefs_of_product(coefs1, coefs2):
     result = np.zeros(len(coefs1)+len(coefs2)-1)
