@@ -1,7 +1,6 @@
 from optics.raytracing.optical_surfaces import (
     SphericalCap,
     ConicalSlice,
-    PolynomialCap,
     Plane,
     )
 from optics.read_zmx import ZemaxData

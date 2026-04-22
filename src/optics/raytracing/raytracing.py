@@ -426,26 +426,18 @@ class OpticalSurface(object):
         pts = self.pointList()
         return [{"type":"line","points":pts,"width":2,"color":"black"}]
 
-    def distance(self,pt):
-        raise NotImplementedError("""
-            "distance" method needs to be overridden for children classes
-            of OpticalSurface
-        """)
-
-    def normal(self,pt):
-        raise NotImplementedError("""
-            "normal" method needs to be overridden for children classes
-            of OpticalSurface
-        """)
+    def normal(self, pt: np.ndarray):
+        raise NotImplementedError(
+            "`normal` method needs to be overridden for "\
+            "children classes of OpticalSurface")
 
     def bbox(self):
-        raise NotImplementedError("""
-            "bbox" method needs to be overridden for children classes
-            of OpticalSurface
-        """)
+        raise NotImplementedError(
+            "`bbox` method needs to be overridden for "\
+            "children classes of OpticalSurface")
 
 class OpticalSurfaceCollection(object):
-    def __init__(self,name,elements):
+    def __init__(self, name, elements):
         self.__name__ = name
         self.elements = elements
         self.attrLinks = []
@@ -538,35 +530,77 @@ class OpticalSurfaceCollection(object):
     def find_ray_intersection(self, origin, rdir,
             maxsteps = 1000,
             tol = 1e-6):
-        bbox = self.bbox()
-        pt = origin.copy()
-        rdir = np.array(rdir)
-        rdir = rdir / np.linalg.norm(rdir)
+        rdir = np.array(rdir) / np.linalg.norm(rdir)
+        elements_exact = [p for p in get_primitives(self)
+            if hasattr(p, "ray_intersection")]
+        maxdist = np.inf
+        closest = None
+        for p in elements_exact:
+            t = p.ray_intersection(Ray(origin, rdir, {}))
+            if t is not None and t < maxdist:
+                maxdist, closest = t, p
+        elements_nonexact = [p for p in get_primitives(self)
+            if not hasattr(p, "ray_intersection")]
 
-        if bbox is None:
-            return pt, None, None, None, None, "escape"
+        if elements_nonexact:
+            coll = OpticalSurfaceCollection("", elements_nonexact)
+            pt, prim, normal, dist, maxsteps, status = \
+                coll._find_ray_intersection_using_distance(origin, rdir,
+                    maxsteps=maxsteps, tol=tol, maxdist=maxdist)
+        else:
+            if maxdist < np.inf:
+                pt = origin + maxdist*rdir
+                return pt, closest, closest.normal(pt), None, None, "tol"
+            else:
+                return origin, None, None, None, None, "escape"
 
-        a = np.ones(len(pt))
-        b = bbox[1].copy()
-        mask = rdir<0.0
-        a[mask] = -1.0
-        b[mask] = -bbox[0][mask]
+        if status == "tol" and np.linalg.norm(pt-origin) < maxdist:
+            return pt, prim, normal, dist, maxsteps, status
+        elif maxdist == np.inf and status != "tol":
+            return pt, prim, normal, dist, maxsteps, status
+        elif maxdist < np.inf:
+            pt = origin + maxdist*rdir/np.linalg.norm(rdir)
+            return pt, closest, closest.normal(pt), None, None, "tol"
+        else:
+            return origin, None, None, None, None, "escape"
 
-        for c in range(maxsteps):
-            dist = self.distance(pt)
-            if np.any(a*pt > b):
-                return pt, None, None, dist, c, "escape"
-            if dist < tol:
-                p,normal = self.closest_primitive_and_normal(pt)
-                return pt, p, normal, dist, c, "tol"
-            pt += dist*rdir
-
-        p, normal = self.closest_primitive_and_normal(pt)
-        return pt, p, normal, dist, maxsteps, "maxsteps"
-
-    def closest_primitive_and_normal(self,pt):
-        lst = [(p.distance(pt), p, p.normal(pt)) for p in get_primitives(self)]
-        return sorted(lst, key=lambda p:p[0])[0][1:]
+    # def _find_ray_intersection_using_distance(self, origin, rdir,
+    #         maxsteps = 1000,
+    #         maxdist = np.inf,
+    #         tol = 1e-6):
+    #     bbox = self.bbox()
+    #     pt = origin.copy()
+    #     rdir = np.array(rdir)
+    #     rdir = rdir / np.linalg.norm(rdir)
+    #
+    #     if bbox is None:
+    #         return pt, None, None, None, None, "escape"
+    #
+    #     a = np.ones(len(pt))
+    #     b = bbox[1].copy()
+    #     mask = rdir<0.0
+    #     a[mask] = -1.0
+    #     b[mask] = -bbox[0][mask]
+    #
+    #     tot_dist = 0.0
+    #     for c in range(maxsteps):
+    #         dist = self.distance(pt)
+    #         if np.any(a*pt > b):
+    #             return pt, None, None, dist, c, "escape"
+    #         if dist < tol:
+    #             p,normal = self.closest_primitive_and_normal(pt)
+    #             return pt, p, normal, dist, c, "tol"
+    #         pt += dist*rdir
+    #         tot_dist += dist
+    #         if tot_dist > maxdist:
+    #             return pt, None, None, dist, c, "escape"
+    #
+    #     p, normal = self.closest_primitive_and_normal(pt)
+    #     return pt, p, normal, dist, maxsteps, "maxsteps"
+    #
+    # def closest_primitive_and_normal(self,pt):
+    #     lst = [(p.distance(pt), p, p.normal(pt)) for p in get_primitives(self)]
+    #     return sorted(lst, key=lambda p:p[0])[0][1:]
 
     def geometry(self):
         res = []

@@ -3,41 +3,14 @@
 import numpy as np
 import scipy
 import itertools
-from optics.raytracing import OpticalSurface
+from optics.raytracing import OpticalSurface, Ray
 from optics.utils import (
     closest_point_on_polynomial_graph,
     normal_to_polynomial_graph,
+    projector_perpendicular,
+    quadratic_real_solutions,
+    coefs_of_composition,
     )
-
-class Rectangle(OpticalSurface):
-    def __init__(self, origin, extents, name = 'rectangle'):
-        OpticalSurface.__init__(self, name)
-        self.origin = np.array(origin)
-        self.extents = np.array(extents)
-        normal = np.cross(extents[0], extents[1])
-        normal = normal / np.linalg.norm(normal)
-        self.normalVec = np.array(normal)
-
-    def drawing(self, projection_matrix):
-        pts3d = np.array([self.origin+x*self.extents[0]/2+y*self.extents[1]/2
-            for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
-        pts2d = (projection_matrix @ pts3d.T).T
-        return [pts2d]
-
-    def distance(self,pt):
-        z = np.dot(pt - self.origin, self.normalVec)
-        xs = [np.dot(pt - self.origin, v) / np.linalg.norm(v)
-            for v in self.extents]
-        xs = [max(0, abs(x) - np.linalg.norm(v) / 2)
-            for x, v in zip(xs, self.extents)]
-        return np.linalg.norm(xs + [z])
-
-    def normal(self,pt):
-        return self.normalVec.view(np.ndarray)
-
-    def bbox(self):
-        radius = 0.5 * max([np.linalg.norm(v) for v in self.extents])
-        return self.origin - radius, self.origin + radius
 
 class Plane(OpticalSurface):
     def __init__(self,name='plane',origin=None,normal=None):
@@ -59,9 +32,20 @@ class Plane(OpticalSurface):
         pts2d = (projection_matrix @ pts3d.T).T
         return [pts2d]
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        return abs(np.dot(pt-self.origin, self.normalVec))
+    def ray_intersection(self, ray: Ray):
+        a = np.dot(self.normalVec, ray.direction)
+        b = np.dot(self.normalVec, self.origin - ray.origin)
+        if a != 0:
+            t = b / a
+            if t >= 0: # intersection in front of the ray origin
+                return t
+            else: # intersection begind the ray origin
+                return None
+        else:
+            if b == 0: # ray lies in plane -> infinitely many intersections
+                return 0.0
+            else: # ray parallel to plane but not in it -> no intersections
+                return None
 
     def normal(self,pt):
         return self.normalVec.view(np.ndarray)
@@ -69,6 +53,37 @@ class Plane(OpticalSurface):
     def bbox(self):
         radius = 100.0
         return self.origin-radius, self.origin+radius
+
+class Rectangle(OpticalSurface):
+    def __init__(self, origin, extents, name = 'rectangle'):
+        OpticalSurface.__init__(self, name)
+        self.origin = np.array(origin)
+        self.extents = np.array(extents)
+        normal = np.cross(extents[0], extents[1])
+        normal = normal / np.linalg.norm(normal)
+        self.normalVec = np.array(normal)
+
+    def drawing(self, projection_matrix):
+        pts3d = np.array([self.origin+x*self.extents[0]/2+y*self.extents[1]/2
+            for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
+        pts2d = (projection_matrix @ pts3d.T).T
+        return [pts2d]
+
+    def ray_intersection(self, ray: Ray):
+        t = Plane.ray_intersection(self, ray)
+        if t is not None:
+            pt = ray.origin + t * ray.direction
+            if all([abs(np.dot(u, pt - self.origin)) < np.dot(u, u)/2
+                    for u in self.extents]):
+                return t
+        return None
+
+    def normal(self,pt):
+        return self.normalVec.view(np.ndarray)
+
+    def bbox(self):
+        radius = 0.5 * max([np.linalg.norm(v) for v in self.extents])
+        return self.origin - radius, self.origin + radius
 
 class Pinhole(OpticalSurface):
     def __init__(self, inner_radius, outer_radius,
@@ -93,17 +108,14 @@ class Pinhole(OpticalSurface):
         pts2dB = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T
         return [pts2dA, pts2dB]
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        d = np.dot(self.normalVec, pt - self.origin)
-        ptp = pt - self.normalVec * d
-        r = np.linalg.norm(ptp - self.origin)
-        if r > self.outer_radius:
-            return np.sqrt(d ** 2 + (r - self.outer_radius) ** 2)
-        elif r > self.inner_radius:
-            return abs(d)
-        else:
-            return np.sqrt(d ** 2 + (r - self.inner_radius) ** 2)
+    def ray_intersection(self, ray: Ray):
+        t = Plane.ray_intersection(self, ray)
+        if t is not None:
+            pt = ray.origin + t * ray.direction
+            r = np.linalg.norm(pt - self.origin)
+            if (self.inner_radius < r < self.outer_radius):
+                return t
+        return None
 
     def normal(self, pt):
         return self.normalVec.view(np.ndarray)
@@ -133,15 +145,13 @@ class Disk(OpticalSurface):
         pts2d = (projection_matrix @ (pts*self.radius+self.origin).T).T
         return [pts2d]
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        d = np.dot(self.normalVec, pt - self.origin)
-        ptp = pt - self.normalVec * d
-        r = np.linalg.norm(ptp - self.origin)
-        if r > self.radius:
-            return np.sqrt(d ** 2 + (r - self.radius) ** 2)
-        else:
-            return abs(d)
+    def ray_intersection(self, ray: Ray):
+        t = Plane.ray_intersection(self, ray)
+        if t is not None:
+            pt = ray.origin + t * ray.direction
+            if np.linalg.norm(pt - self.origin) < self.radius:
+                return t
+        return None
 
     def normal(self, pt):
         return self.normalVec.view(np.ndarray)
@@ -163,13 +173,14 @@ class Slit(OpticalSurface):
         self.origin = np.array(origin)
         self.normalVec = np.array(normal)
         self.dirVec = np.array(slit_direction)
+        self.perpVec = np.cross(self.normalVec, self.dirVec)
         self.width = width
         self.length = length
         self.outer_radius = outer_radius
 
     def drawing(self, projection_matrix):
         ex = self.dirVec
-        ey = np.cross(self.normalVec, self.dirVec)
+        ey = self.perpVec
         pts = np.array([ex*x*self.width/2+ey*y*self.length/2
             for x, y in [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]])
         pts2dA = (projection_matrix @ (pts+self.origin).T).T
@@ -178,19 +189,15 @@ class Slit(OpticalSurface):
         pts2dB = (projection_matrix @ (pts*self.outer_radius+self.origin).T).T
         return [pts2dA, pts2dB]
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        d = np.dot(self.normalVec, pt - self.origin)
-        ptp = pt - self.normalVec * d
-        x = np.dot(self.dirVec, ptp)
-        y = np.dot(np.cross(self.normalVec, self.dirVec), ptp)
-        r = np.sqrt(x**2 + y**2)
-        if abs(x) < self.width/2 and abs(y) < self.length/2:
-            return np.sqrt(d ** 2 + min(abs(abs(x)-self.width/2), abs(abs(y)-self.length/2))**2)
-        elif r < self.outer_radius:
-            return abs(d)
-        else:
-            return np.sqrt(d ** 2 + (r - self.outer_radius) ** 2)
+    def ray_intersection(self, ray: Ray):
+        t = Plane.ray_intersection(self, ray)
+        if t is not None:
+            pt = ray.origin + t * ray.direction
+            if (np.linalg.norm(pt - self.origin) < self.outer_radius and not
+                    all([abs(np.dot(u, pt - self.origin)) < a/2 for u, a in
+                    [(self.dirVec, self.width), (self.perpVec, self.length)]])):
+                return t
+        return None
 
     def normal(self, pt):
         return self.normalVec.view(np.ndarray)
@@ -218,9 +225,20 @@ class Sphere(OpticalSurface):
         pts2d = (projection_matrix @ (pts*self.radius+self.origin).T).T
         return [pts2d]
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        return abs(np.linalg.norm(pt-self.origin)-self.radius)
+    def ray_intersection(self, ray: Ray, return_all: bool = False):
+        dr = ray.origin - self.origin
+        a = np.dot(ray.direction, ray.direction)
+        b = 2*np.dot(dr, ray.direction)
+        c = np.dot(dr, dr) - self.radius**2
+        ts = quadratic_real_solutions(a, b, c)
+        ts = [t for t in ts if t >= 0]
+        if return_all:
+            return ts
+        else:
+            if ts:
+                return ts[0]
+            else:
+                return None
 
     def normal(self, pt):
         x = pt-self.origin
@@ -264,18 +282,20 @@ class SphericalCap(OpticalSurface):
         return self.r**2*\
             self.invRadius/(1+np.sqrt(1-(self.invRadius*self.r)**2))
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        y = -np.dot(self.direction, pt-self.origin)
-        x = np.linalg.norm(pt-self.origin+y*self.direction)
-        A = (x**2+y**2)*self.invRadius-2*y
-        A = A/(np.sqrt((x*self.invRadius)**2+(1-y*self.invRadius)**2)+1)
-        y0 = self.r**2*self.invRadius/(
-            1+np.sqrt(1-(self.r*self.invRadius)**2))
-        if x/(A*self.invRadius+1)<self.r and y*self.invRadius<1.0:
-            return abs(A)
+    def ray_intersection(self, ray: Ray):
+        if self.invRadius != 0:
+            r = 1/self.invRadius
+            sphere = Sphere("", self.origin-r*self.direction, radius=r)
+            ts = sphere.ray_intersection(ray, return_all=True)
         else:
-            return np.sqrt((y0-y)**2+(x-self.r)**2)
+            t = Plane("", self.origin, self.direction).ray_intersection(ray)
+            ts = [t] if t is not None else []
+        proj = projector_perpendicular(self.direction)
+        ts_and_pts = [(t, ray.origin+ray.direction*t) for t in ts if t>0]
+        ts = sorted([t for t, pt in ts_and_pts
+            if abs(np.dot(pt-self.origin, self.direction)*self.invRadius)<1.0
+            and np.linalg.norm(proj @ (pt-self.origin)) < self.r])
+        return ts[0] if ts else None
 
     def normal(self, pt):
         pt = np.array(pt)
@@ -292,11 +312,11 @@ class SphericalCap(OpticalSurface):
         pt = self.origin-self.direction*y0
         return pt-self.r, pt+self.r
 
-class PolynomialCap(OpticalSurface):
+class EvenPolynomialCap(OpticalSurface):
     def __init__(
             self,
             coefs,
-            name='polynomial cap',
+            name='even polynomial cap',
             origin=None,
             direction=None,
             r=0.5):
@@ -317,7 +337,7 @@ class PolynomialCap(OpticalSurface):
         ez = -self.direction
 
         R = np.linspace(-self.r, self.r, 101)
-        Z = np.polyval(self.coefs[::-1], R)
+        Z = np.polyval(self.coefs[::-1], R**2)
 
         pts = np.array([ex*r+ez*z for r, z in zip(R, Z)])
         pts2dA = (projection_matrix @ (pts+self.origin).T).T
@@ -332,15 +352,27 @@ class PolynomialCap(OpticalSurface):
     def dz(self):
         return np.polyval(self.coefs[::-1], self.r)
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        y = -np.dot(self.direction, pt-self.origin)
-        x = np.linalg.norm(pt-self.origin+y*self.direction)
-        return closest_point_on_polynomial_graph(
-            [x, y],
-            self.coefs,
-            [-self.r, self.r]
-            )[2]
+    def ray_intersection(self, ray: Ray):
+        # proj @ (ray.origin - self.origin + ray.direction * t)
+        proj = projector_perpendicular(self.direction)
+        u = proj @ (ray.origin - self.origin)
+        v = proj @ ray.direction
+        a = np.dot(v, v)
+        b = 2*np.dot(u, v)
+        c = np.dot(u, u)
+        # R^2 = a * t^2 + b * t + c
+        A = np.dot(-self.direction, ray.direction)
+        B = np.dot(-self.direction, ray.origin - self.origin)
+        # z = A * t + B
+        # A * t + B == P( a * t^2 + b * t + c )
+        coefs = coefs_of_composition(self.coefs, [c, b, a])
+        coefs[0] -= B
+        coefs[1] -= A
+        ts_and_pts = [(t.real, ray.origin+ray.direction*t.real)
+            for t in np.roots(coefs[::-1]) if t.imag==0 and t.real>0]
+        ts = sorted([t for t, pt in ts_and_pts
+            if np.linalg.norm(proj @ (pt-self.origin)) < self.r])
+        return ts[0] if ts else None
 
     def normal(self, pt):
         pt = np.array(pt)
@@ -348,14 +380,17 @@ class PolynomialCap(OpticalSurface):
         y = np.dot(ey, pt-self.origin)
         x = np.linalg.norm(pt-self.origin-y*ey)
         ex = (pt-self.origin-y*ey)/x
-        n = normal_to_polynomial_graph(self.coefs, x)
+        coefs = []
+        for c in self.coefs:
+            coefs += [c, 0.0]
+        n = normal_to_polynomial_graph(coefs, x)
         return n[0]*ex + n[1]*ey
 
     def bbox(self):
         pt = self.origin
         return pt-self.r, pt+self.r
 
-class EvenAsphere(PolynomialCap):
+class EvenAsphere(EvenPolynomialCap):
     def __init__(
             self,
             name='even asphere',
@@ -377,13 +412,11 @@ class EvenAsphere(PolynomialCap):
                 scipy.special.factorial2(2*n-1) * invRadius**(2*n-1) /
                 ((2*n-1)*scipy.special.factorial2(2*n))
                 )
+        coefs = np.concatenate(([0.0], coefs))
 
-        coefs_all = np.zeros(2*len(coefs)+2)
-        coefs_all[2::2] = coefs
-
-        PolynomialCap.__init__(
+        EvenPolynomialCap.__init__(
             self,
-            coefs_all,
+            coefs,
             name=name,
             origin=origin,
             direction=direction,
@@ -425,22 +458,26 @@ class ConicalSlice(OpticalSurface):
         pts2dC4 = (projection_matrix @ (pts+self.origin).T).T
         return [pts2dA, pts2dB, pts2dC1, pts2dC2, pts2dC3, pts2dC4]
 
-    def distance(self, pt):
-        pt = np.array(pt)
-        z = np.dot(self.direction, pt-self.origin)
-        R = np.linalg.norm(pt-self.origin)
-        r = np.sqrt(R**2-z**2)
-        dx = np.array([z,r-(self.r1+self.r2)/2])
-        ex = np.array([self.h, self.r2-self.r1])
-        ex = ex/np.linalg.norm(ex)
-        ey = np.array([[0, -1], [1, 0]]).dot(ex)
-        X = np.dot(ex,dx)
-        L = np.sqrt(self.h**2+(self.r1-self.r2)**2)
-        Y = abs(np.dot(ey, dx))
-        if abs(X)<L/2:
-            return Y
-        else:
-            return np.sqrt((abs(X)-L/2)**2+Y**2)
+    def ray_intersection(self, ray: Ray):
+        k = (self.r2-self.r1)/self.h
+        r0 = (self.r2+self.r1)/2
+        a = np.dot(self.direction, ray.direction)
+        b = np.dot(self.direction, ray.origin - self.origin)
+        # z == a * t + b
+        # r == r0 + k*z
+        c = np.dot(ray.direction, ray.direction)
+        d = 2*np.dot(ray.direction, ray.origin-self.origin)
+        e = np.dot(ray.origin-self.origin, ray.origin-self.origin)
+        # R^2 == c * t^2 + d * t + e == r^2 + z^2
+        A = c - (k**2+1)*a**2
+        B = d - 2*a*(b*(k**2+1)+r0*k)
+        C = e - (r0**2+(k**2+1)*b**2+2*r0*k*b)
+        ts = quadratic_real_solutions(A, B, C)
+
+        ts_and_pts = [(t, ray.origin+ray.direction*t) for t in ts if t>0]
+        ts = sorted([t for t, pt in ts_and_pts
+            if abs(np.dot(self.direction, pt-self.origin))<self.h/2])
+        return ts[0] if ts else None
 
     def normal(self, pt):
         pt = np.array(pt)

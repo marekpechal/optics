@@ -39,6 +39,13 @@ def coefs_of_product(coefs1, coefs2):
                 result[i] += coefs1[j]*coefs2[i-j]
     return result
 
+def coefs_of_composition(coefs_outer, coefs_inner):
+    coefs = [0.0]
+    for c in coefs_outer[::-1]:
+        coefs = coefs_of_product(coefs, coefs_inner)
+        coefs[0] += c
+    return coefs
+
 def coefs_of_derivative(coefs):
     return coefs[1:]*np.arange(1, len(coefs))
 
@@ -87,3 +94,25 @@ def normal_to_polynomial_graph(
         ) -> np.ndarray:
     e = np.array([np.polyval(coefs_of_derivative(coefs)[::-1], x), -1.0])
     return e / np.linalg.norm(e)
+
+def projector_parallel(v):
+    v = v / np.linalg.norm(v)
+    return np.outer(v, v)
+
+def projector_perpendicular(v):
+    return np.eye(3) - projector_parallel(v)
+
+def quadratic_real_solutions(a, b, c):
+    if a != 0:
+        D = b**2 - 4*a*c
+        if D < 0:
+            return []
+        elif D == 0:
+            return [-b/(2*a)]
+        else:
+            sqrtD = np.sqrt(D)
+            return [(-b-sqrtD)/(2*a), (-b+sqrtD)/(2*a)]
+    elif b != 0:
+        return [-c/b]
+    else:
+        return []

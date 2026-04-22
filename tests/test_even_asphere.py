@@ -1,7 +1,6 @@
 from optics.raytracing.optical_surfaces import (
     EvenAsphere,
     SphericalCap,
-    PolynomialCap,
     )
 
 from optics.raytracing import OpticalSurfaceCollection
